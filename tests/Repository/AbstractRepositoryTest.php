@@ -12,13 +12,13 @@ use Doctrine\ORM\Mapping\ClassMetadata;
 use Doctrine\ORM\Query\Expr\Join;
 use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
+use Mockery;
+use Mockery\MockInterface;
 use PrecisionSoft\Doctrine\Utility\Join\JoinCollection;
 use PrecisionSoft\Doctrine\Utility\Repository\AbstractRepository;
 use PrecisionSoft\Doctrine\Utility\Repository\DoctrineRepository;
 use PrecisionSoft\Symfony\Phpunit\MockDto;
 use PrecisionSoft\Symfony\Phpunit\TestCase\AbstractTestCase;
-use Mockery;
-use Mockery\MockInterface;
 use ReflectionMethod;
 
 /**
