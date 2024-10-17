@@ -1,7 +1,7 @@
 {
     "name": "precision-soft/doctrine-utility",
     "type": "library",
-    "version": "v1.0.0",
+    "version": "v2.0.0",
     "description": "doctrine utilities library",
     "keywords": [
         "doctrine",
@@ -18,7 +18,7 @@
     "require": {
         "php": ">=8.2",
         "ext-pdo": "*",
-        "doctrine/dbal": "3.*",
+        "doctrine/dbal": "3.*||4.*",
         "doctrine/orm": "3.*",
         "doctrine/persistence": "3.*"
     },
