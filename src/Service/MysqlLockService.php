@@ -103,19 +103,19 @@ class MysqlLockService
         string $entityManagerName = null,
         bool $throwException = false,
     ): self {
-        if (false === isset($this->locks[$lockName])) {
-            throw new MysqlLockException(
-                \sprintf('the lock "%s" is not currently acquired', $lockName),
-            );
-        }
-
-        --$this->locks[$lockName]['count'];
-
-        if ($this->locks[$lockName]['count'] > 0) {
-            return $this;
-        }
-
         try {
+            if (false === isset($this->locks[$lockName])) {
+                throw new MysqlLockException(
+                    \sprintf('the lock "%s" is not currently acquired', $lockName),
+                );
+            }
+
+            --$this->locks[$lockName]['count'];
+
+            if ($this->locks[$lockName]['count'] > 0) {
+                return $this;
+            }
+
             /** @var EntityManager $em */
             $em = $this->managerRegistry->getManager($entityManagerName);
 
