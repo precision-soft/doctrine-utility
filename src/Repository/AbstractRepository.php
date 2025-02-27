@@ -13,6 +13,7 @@ use Doctrine\DBAL\Result;
 use Doctrine\ORM\Query\Expr\Join;
 use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
+use Doctrine\Persistence\ObjectManager;
 use PrecisionSoft\Doctrine\Utility\Exception\Exception;
 use PrecisionSoft\Doctrine\Utility\Join\JoinCollection;
 use ReflectionClass;
@@ -31,6 +32,7 @@ abstract class AbstractRepository
         return \lcfirst((new ReflectionClass(static::class))->getShortName());
     }
 
+    /** @internal used by the dependency injection system */
     final public function setManagerRegistry(ManagerRegistry $managerRegistry): self
     {
         $this->managerRegistry = $managerRegistry;
@@ -38,7 +40,12 @@ abstract class AbstractRepository
         return $this;
     }
 
-    final public function attachFilters(
+    final public function refresh(object $entity): void
+    {
+        $this->getManager()->refresh($entity);
+    }
+
+    final protected function attachFilters(
         QueryBuilder $queryBuilder,
         array $filters,
         string $managerName = null,
@@ -59,6 +66,11 @@ abstract class AbstractRepository
         }
 
         return $joinCollection;
+    }
+
+    final protected function getManager(): ObjectManager
+    {
+        return $this->managerRegistry->getManager($this->getManagerName());
     }
 
     final protected function execute(
