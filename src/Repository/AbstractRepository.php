@@ -48,7 +48,7 @@ abstract class AbstractRepository
     final protected function attachFilters(
         QueryBuilder $queryBuilder,
         array $filters,
-        string $managerName = null,
+        ?string $managerName = null,
     ): ?JoinCollection {
         [$genericFilters, $customFilters] = $this->sortFilters($filters, $managerName);
 
@@ -76,7 +76,7 @@ abstract class AbstractRepository
     final protected function execute(
         string $query,
         array $parameters = [],
-        string $connectionName = null,
+        ?string $connectionName = null,
     ): Result {
         $stmt = $this->getConnection($connectionName)->prepare($query);
 
@@ -84,13 +84,13 @@ abstract class AbstractRepository
     }
 
     final protected function getConnection(
-        string $connectionName = null,
+        ?string $connectionName = null,
     ): Connection {
         return $this->managerRegistry->getConnection($connectionName);
     }
 
     final protected function createQueryBuilder(
-        string $managerName = null,
+        ?string $managerName = null,
     ): QueryBuilder {
         return $this->getDoctrineRepository($managerName)->createQueryBuilder(static::getAlias());
     }
@@ -98,7 +98,7 @@ abstract class AbstractRepository
     final protected function createQueryBuilderFromFilters(
         array $filters,
         bool $selectJoins = false,
-        string $managerName = null,
+        ?string $managerName = null,
     ): QueryBuilder {
         $queryBuilder = $this->createQueryBuilder($managerName);
 
@@ -113,7 +113,7 @@ abstract class AbstractRepository
 
     final protected function sortFilters(
         array $filters,
-        string $managerName = null,
+        ?string $managerName = null,
     ): array {
         $genericFilters = $customFilters = [];
 
@@ -162,7 +162,7 @@ abstract class AbstractRepository
     }
 
     final protected function getDoctrineRepository(
-        string $managerName = null,
+        ?string $managerName = null,
     ): DoctrineRepository {
         $managerName ??= $this->getManagerName();
 

@@ -28,7 +28,7 @@ class MysqlLockService
 
     public function isLocked(
         string $lockName,
-        string $entityManagerName = null,
+        ?string $entityManagerName = null,
     ): bool {
         try {
             /** @var EntityManager $em */
@@ -49,7 +49,7 @@ class MysqlLockService
     public function acquire(
         string $lockName,
         int $timeout = 0,
-        string $entityManagerName = null,
+        ?string $entityManagerName = null,
         bool $forceRefresh = false,
     ): self {
         if (false === $forceRefresh && true === isset($this->locks[$lockName])) {
@@ -100,7 +100,7 @@ class MysqlLockService
 
     public function release(
         string $lockName,
-        string $entityManagerName = null,
+        ?string $entityManagerName = null,
         bool $throwException = false,
     ): self {
         try {
@@ -153,7 +153,7 @@ class MysqlLockService
     public function acquireLocks(
         array $lockNames,
         int $timeout = 0,
-        string $entityManagerName = null,
+        ?string $entityManagerName = null,
     ): self {
         \sort($lockNames); /* sort the array to try and avoid deadlocks */
 
@@ -171,8 +171,8 @@ class MysqlLockService
     }
 
     public function releaseLocks(
-        array $lockNames = null,
-        string $entityManagerName = null,
+        ?array $lockNames = null,
+        ?string $entityManagerName = null,
         bool $throwException = false,
     ): self {
         foreach (($lockNames ?? \array_keys($this->locks)) as $lockName) {
@@ -190,7 +190,7 @@ class MysqlLockService
 
     private function prepareLockName(
         string $lockName,
-        string $entityManagerName = null,
+        ?string $entityManagerName = null,
     ): string {
         if (\strlen($lockName) > 64) {
             $lockName = \substr($lockName, 0, 10) . '>>' . \md5($lockName) . '<<' . \substr($lockName, -10);
