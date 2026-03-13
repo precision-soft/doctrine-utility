@@ -56,7 +56,9 @@ final class AbstractRepositoryTest extends AbstractTestCase
         static::assertInstanceOf(QueryBuilder::class, $qb);
     }
 
-    /** @param AbstractRepository $mock */
+    /**
+     * @param AbstractRepository $mock
+     */
     private function mock(MockInterface $mock): void
     {
         $classMetadataMock = Mockery::mock(ClassMetadata::class);

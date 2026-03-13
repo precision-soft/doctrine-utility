@@ -1,7 +1,7 @@
 {
     "name": "precision-soft/doctrine-utility",
     "type": "library",
-    "version": "v3.0.1",
+    "version": "v3.1.0",
     "description": "doctrine utilities library",
     "keywords": [
         "doctrine",
@@ -23,8 +23,8 @@
         "doctrine/persistence": "3.*"
     },
     "require-dev": {
-        "precision-soft/symfony-phpunit": "1.*",
         "friendsofphp/php-cs-fixer": "3.*",
+        "precision-soft/symfony-phpunit": "1.*",
         "squizlabs/php_codesniffer": "3.*"
     },
     "autoload": {

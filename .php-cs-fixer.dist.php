@@ -1,18 +1,33 @@
 <?php
 
-$header = 'Copyright (c) Precision Soft';
+declare(strict_types=1);
 
-$finder = (new PhpCsFixer\Finder())->in(__DIR__)
-    ->exclude(['var', 'vendor']);
+/*
+ * Copyright (c) Precision Soft
+ */
 
-return (new PhpCsFixer\Config())->setRules(
-    [
+$header = <<<'EOF'
+Copyright (c) Precision Soft
+EOF;
+
+$finder = PhpCsFixer\Finder::create()
+    ->in(__DIR__)
+    ->exclude([
+        'var',
+        'vendor',
+    ]);
+
+return (new PhpCsFixer\Config())
+    ->setRules([
         '@PER-CS2.0' => true,
         '@PER-CS2.0:risky' => true,
-        'header_comment' => ['header' => $header],
-        'cast_spaces' => ['space' => 'none'],
-    ]
-)
+        'cast_spaces' => [
+            'space' => 'none',
+        ],
+        'header_comment' => [
+            'header' => $header,
+        ],
+    ])
     ->setRiskyAllowed(true)
     ->setUsingCache(true)
     ->setFinder($finder);

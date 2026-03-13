@@ -9,11 +9,12 @@ declare(strict_types=1);
 namespace PrecisionSoft\Doctrine\Utility\Entity;
 
 use DateTime;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 trait CreatedTrait
 {
-    #[ORM\Column(type: 'datetime', nullable: true)]
+    #[ORM\Column(type: Types::DATETIME_MUTABLE, options: ['default' => 'CURRENT_TIMESTAMP'])]
     private ?DateTime $created;
 
     public function getCreated(): ?DateTime

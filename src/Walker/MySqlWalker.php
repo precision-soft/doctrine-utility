@@ -14,7 +14,7 @@ use PrecisionSoft\Doctrine\Utility\Exception\Exception;
 
 /**
  * $qb->setHint(Query::HINT_CUSTOM_OUTPUT_WALKER, MySqlWalker::class);
- * $qb->setHint(MySQLWalker::HINT_IGNORE_INDEX, 'PRIMARY, other_index');.
+ * $qb->setHint(MySqlWalker::HINT_IGNORE_INDEX, 'PRIMARY, other_index');
  */
 class MySqlWalker extends SqlWalker
 {

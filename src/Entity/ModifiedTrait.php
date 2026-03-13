@@ -9,12 +9,13 @@ declare(strict_types=1);
 namespace PrecisionSoft\Doctrine\Utility\Entity;
 
 use DateTime;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 trait ModifiedTrait
 {
-    #[ORM\Column(type: 'datetime', nullable: false, options: ['default' => 'CURRENT_TIMESTAMP', 'update' => true])]
-    private DateTime $modified;
+    #[ORM\Column(type: Types::DATETIME_MUTABLE, options: ['default' => 'CURRENT_TIMESTAMP', 'update' => true])]
+    private ?DateTime $modified;
 
     public function getModified(): ?DateTime
     {

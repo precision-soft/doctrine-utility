@@ -15,7 +15,9 @@ class JoinCollection
 {
     private array $joins = [];
 
-    /** @return Join[] */
+    /**
+     * @return Join[]
+     */
     public function getJoins(): ?array
     {
         return $this->joins;

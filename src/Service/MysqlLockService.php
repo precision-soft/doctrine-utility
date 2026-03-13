@@ -8,7 +8,7 @@ declare(strict_types=1);
 
 namespace PrecisionSoft\Doctrine\Utility\Service;
 
-use Doctrine\DBAL\Driver\PDO\Connection;
+use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManager;
 use Doctrine\Persistence\ManagerRegistry;
 use PrecisionSoft\Doctrine\Utility\Exception\MysqlLockException;
@@ -17,32 +17,30 @@ use Throwable;
 class MysqlLockService
 {
     private ManagerRegistry $managerRegistry;
+
+    /**
+     * @var array<string, array{preparedLockName: string, count: int}>
+     */
     private array $locks;
 
-    public function __construct(
-        ManagerRegistry $managerRegistry,
-    ) {
+    public function __construct(ManagerRegistry $managerRegistry)
+    {
         $this->managerRegistry = $managerRegistry;
         $this->locks = [];
     }
 
-    public function isLocked(
-        string $lockName,
-        ?string $entityManagerName = null,
-    ): bool {
+    public function isLocked(string $lockName, ?string $entityManagerName = null): bool
+    {
         try {
-            /** @var EntityManager $em */
-            $em = $this->managerRegistry->getManager($entityManagerName);
-
-            $connection = $em->getConnection();
-
+            /** @var EntityManager $entityManager */
+            $entityManager = $this->managerRegistry->getManager($entityManagerName);
+            $connection = $entityManager->getConnection();
             $sql = \sprintf('SELECT IS_FREE_LOCK(%s) AS lockIsFree', $this->prepareLockName($lockName, $entityManagerName));
-
             $row = $connection->executeQuery($sql)->fetchAssociative();
 
             return 1 !== (int)$row['lockIsFree'];
-        } catch (Throwable $t) {
-            throw new MysqlLockException($t->getMessage(), $t->getCode(), $t);
+        } catch (Throwable $throwable) {
+            throw new MysqlLockException($throwable->getMessage(), (int)$throwable->getCode(), $throwable);
         }
     }
 
@@ -59,20 +57,15 @@ class MysqlLockService
         }
 
         try {
-            /** @var EntityManager $em */
-            $em = $this->managerRegistry->getManager($entityManagerName);
-
-            $connection = $em->getConnection();
-
+            /** @var EntityManager $entityManager */
+            $entityManager = $this->managerRegistry->getManager($entityManagerName);
+            $connection = $entityManager->getConnection();
             $preparedLockName = $this->prepareLockName($lockName, $entityManagerName);
-
             $sql = \sprintf('SELECT GET_LOCK(%s, %s) AS lockAcquired', $preparedLockName, $timeout);
-
             $row = $connection->executeQuery($sql)->fetchAssociative();
 
             switch ((int)$row['lockAcquired']) {
                 case 1:
-                    /* all ok */
                     if (false === isset($this->locks[$lockName])) {
                         $this->locks[$lockName] = [
                             'preparedLockName' => $preparedLockName,
@@ -81,17 +74,18 @@ class MysqlLockService
                     }
 
                     ++$this->locks[$lockName]['count'];
+
                     break;
                 case 0:
                     throw new MysqlLockException('another operation with the same id is already in progress');
                 default:
                     throw new MysqlLockException('an error occurred (such as running out of memory or the thread was killed)');
             }
-        } catch (Throwable $t) {
+        } catch (Throwable $throwable) {
             throw new MysqlLockException(
-                \sprintf('failed acquiring lock `%s`/`%s`: `%s`', $lockName, $preparedLockName ?? '~', $t->getMessage()),
-                $t->getCode(),
-                $t,
+                \sprintf('failed acquiring lock `%s`/`%s`: `%s`', $lockName, $preparedLockName ?? '~', $throwable->getMessage()),
+                (int)$throwable->getCode(),
+                $throwable,
             );
         }
 
@@ -116,33 +110,29 @@ class MysqlLockService
                 return $this;
             }
 
-            /** @var EntityManager $em */
-            $em = $this->managerRegistry->getManager($entityManagerName);
-
-            $connection = $em->getConnection();
-
+            /** @var EntityManager $entityManager */
+            $entityManager = $this->managerRegistry->getManager($entityManagerName);
+            $connection = $entityManager->getConnection();
             $preparedLockName = $this->locks[$lockName]['preparedLockName'];
-
             $sql = \sprintf('SELECT RELEASE_LOCK(%s) AS lockReleased', $preparedLockName);
-
             $row = $connection->executeQuery($sql)->fetchAssociative();
 
             switch ((int)$row['lockReleased']) {
                 case 1:
-                    /* all ok */
                     unset($this->locks[$lockName]);
+
                     break;
                 case 0:
                     throw new MysqlLockException('lock was not established by this thread');
                 default:
                     throw new MysqlLockException('the named lock did not exist');
             }
-        } catch (Throwable $t) {
+        } catch (Throwable $throwable) {
             if (true === $throwException) {
                 throw new MysqlLockException(
-                    \sprintf('failed releasing lock `%s`/`%s`: %s', $lockName, $preparedLockName ?? '~', $t->getMessage()),
-                    $t->getCode(),
-                    $t,
+                    \sprintf('failed releasing lock `%s`/`%s`: %s', $lockName, $preparedLockName ?? '~', $throwable->getMessage()),
+                    (int)$throwable->getCode(),
+                    $throwable,
                 );
             }
         }
@@ -150,21 +140,18 @@ class MysqlLockService
         return $this;
     }
 
-    public function acquireLocks(
-        array $lockNames,
-        int $timeout = 0,
-        ?string $entityManagerName = null,
-    ): self {
-        \sort($lockNames); /* sort the array to try and avoid deadlocks */
+    public function acquireLocks(array $lockNames, int $timeout = 0, ?string $entityManagerName = null): self
+    {
+        \sort($lockNames);
 
         try {
             foreach ($lockNames as $lockName) {
                 $this->acquire($lockName, $timeout, $entityManagerName);
             }
-        } catch (Throwable $t) {
+        } catch (Throwable $throwable) {
             $this->releaseLocks($lockNames, $entityManagerName);
 
-            throw new MysqlLockException($t->getMessage(), $t->getCode(), $t);
+            throw new MysqlLockException($throwable->getMessage(), (int)$throwable->getCode(), $throwable);
         }
 
         return $this;
@@ -178,9 +165,9 @@ class MysqlLockService
         foreach (($lockNames ?? \array_keys($this->locks)) as $lockName) {
             try {
                 $this->release($lockName, $entityManagerName);
-            } catch (Throwable $t) {
+            } catch (Throwable $throwable) {
                 if (true === $throwException) {
-                    throw new MysqlLockException($t->getMessage(), $t->getCode(), $t);
+                    throw new MysqlLockException($throwable->getMessage(), (int)$throwable->getCode(), $throwable);
                 }
             }
         }
@@ -188,10 +175,8 @@ class MysqlLockService
         return $this;
     }
 
-    private function prepareLockName(
-        string $lockName,
-        ?string $entityManagerName = null,
-    ): string {
+    private function prepareLockName(string $lockName, ?string $entityManagerName = null): string
+    {
         if (\strlen($lockName) > 64) {
             $lockName = \substr($lockName, 0, 10) . '>>' . \md5($lockName) . '<<' . \substr($lockName, -10);
         }

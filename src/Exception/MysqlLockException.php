@@ -8,6 +8,4 @@ declare(strict_types=1);
 
 namespace PrecisionSoft\Doctrine\Utility\Exception;
 
-class MysqlLockException extends Exception
-{
-}
+class MysqlLockException extends Exception {}
