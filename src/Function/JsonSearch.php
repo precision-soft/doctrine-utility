@@ -30,10 +30,10 @@ class JsonSearch extends AbstractJsonSearch
         $mode = $sqlWalker->walkStringPrimary($this->mode);
         $searchArgs = $sqlWalker->walkStringPrimary($this->jsonSearchExpr);
 
-        if (false === empty($this->jsonEscapeExpr)) {
+        if (null !== $this->jsonEscapeExpr) {
             $searchArgs .= ', ' . $sqlWalker->walkStringPrimary($this->jsonEscapeExpr);
 
-            if (false === empty($this->jsonPaths)) {
+            if ([] !== $this->jsonPaths) {
                 $jsonPaths = [];
                 foreach ($this->jsonPaths as $path) {
                     $jsonPaths[] = $sqlWalker->walkStringPrimary($path);

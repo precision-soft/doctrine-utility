@@ -30,7 +30,7 @@ class JsonContains extends FunctionNode
         $jsonVal = $sqlWalker->walkStringPrimary($this->jsonValExpr);
 
         $jsonPath = '';
-        if (false === empty($this->jsonPathExpr)) {
+        if (null !== $this->jsonPathExpr) {
             $jsonPath = ', ' . $sqlWalker->walkStringPrimary($this->jsonPathExpr);
         }
 

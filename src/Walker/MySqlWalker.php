@@ -30,15 +30,18 @@ class MySqlWalker extends SqlWalker
 
         $result = parent::walkFromClause($fromClause);
 
-        if (false === empty($index = $this->getQuery()->getHint(self::HINT_USE_INDEX))) {
+        $index = $this->getQuery()->getHint(self::HINT_USE_INDEX);
+        if (null !== $index && '' !== $index) {
             $result = \preg_replace($regex, '\1 USE INDEX (' . $index . ')', $result);
         }
 
-        if (false === empty($index = $this->getQuery()->getHint(self::HINT_IGNORE_INDEX))) {
+        $index = $this->getQuery()->getHint(self::HINT_IGNORE_INDEX);
+        if (null !== $index && '' !== $index) {
             $result = \preg_replace($regex, '\1 IGNORE INDEX (' . $index . ')', $result);
         }
 
-        if (false === empty($index = $this->getQuery()->getHint(self::HINT_FORCE_INDEX))) {
+        $index = $this->getQuery()->getHint(self::HINT_FORCE_INDEX);
+        if (null !== $index && '' !== $index) {
             $result = \preg_replace($regex, '\1 FORCE INDEX (' . $index . ')', $result);
         }
 
@@ -49,7 +52,8 @@ class MySqlWalker extends SqlWalker
     {
         $result = parent::walkWhereClause($whereClause);
 
-        if (false === empty($this->getQuery()->getHint(self::HINT_SELECT_FOR_UPDATE))) {
+        $selectForUpdate = $this->getQuery()->getHint(self::HINT_SELECT_FOR_UPDATE);
+        if (null !== $selectForUpdate && '' !== $selectForUpdate) {
             $result .= ' FOR UPDATE';
         }
 
@@ -63,9 +67,10 @@ class MySqlWalker extends SqlWalker
     ): string {
         $result = parent::walkJoinAssociationDeclaration($joinAssociationDeclaration, $joinType, $condExpr);
 
-        if (false === empty($ignoreIndex = $this->getQuery()->getHint(static::HINT_IGNORE_INDEX_ON_JOIN))) {
+        $ignoreIndex = $this->getQuery()->getHint(static::HINT_IGNORE_INDEX_ON_JOIN);
+        if (null !== $ignoreIndex && [] !== $ignoreIndex) {
             [$index, $table] = $ignoreIndex;
-            if (2 !== \count($ignoreIndex) || true === empty($table)) {
+            if (2 !== \count($ignoreIndex) || null === $table || '' === $table) {
                 throw new Exception('ignore index on join hint with invalid parameters');
             }
 

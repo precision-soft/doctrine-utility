@@ -56,6 +56,7 @@ class MysqlLockService
             return $this;
         }
 
+        $preparedLockName = null;
         try {
             /** @var EntityManager $entityManager */
             $entityManager = $this->managerRegistry->getManager($entityManagerName);
@@ -97,6 +98,7 @@ class MysqlLockService
         ?string $entityManagerName = null,
         bool $throwException = false,
     ): self {
+        $preparedLockName = null;
         try {
             if (false === isset($this->locks[$lockName])) {
                 throw new MysqlLockException(
@@ -113,7 +115,7 @@ class MysqlLockService
             /** @var EntityManager $entityManager */
             $entityManager = $this->managerRegistry->getManager($entityManagerName);
             $connection = $entityManager->getConnection();
-            $preparedLockName = $this->locks[$lockName]['preparedLockName'];
+            $preparedLockName = $this->locks[$lockName]['preparedLockName'] ?? null;
             $sql = \sprintf('SELECT RELEASE_LOCK(%s) AS lockReleased', $preparedLockName);
             $row = $connection->executeQuery($sql)->fetchAssociative();
 
