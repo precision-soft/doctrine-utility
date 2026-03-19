@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "8d0c2252dc58faf1b24c539c1f87ae78",
+    "content-hash": "b4fbc3167f797745c677b8483fc5a227",
     "packages": [
         {
             "name": "doctrine/collections",
@@ -2385,16 +2385,16 @@
         },
         {
             "name": "precision-soft/symfony-phpunit",
-            "version": "v1.0.1",
+            "version": "v1.1.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/precision-soft/symfony-phpunit.git",
-                "reference": "b84637497b934aa44d98e5c1694f276feb12ce45"
+                "reference": "eb8cb7f9fd1275084b50192bf279685ad504b319"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/precision-soft/symfony-phpunit/zipball/b84637497b934aa44d98e5c1694f276feb12ce45",
-                "reference": "b84637497b934aa44d98e5c1694f276feb12ce45",
+                "url": "https://api.github.com/repos/precision-soft/symfony-phpunit/zipball/eb8cb7f9fd1275084b50192bf279685ad504b319",
+                "reference": "eb8cb7f9fd1275084b50192bf279685ad504b319",
                 "shasum": ""
             },
             "require": {
@@ -2434,9 +2434,9 @@
             ],
             "support": {
                 "issues": "https://github.com/precision-soft/symfony-phpunit/issues",
-                "source": "https://github.com/precision-soft/symfony-phpunit/tree/v1.0.1"
+                "source": "https://github.com/precision-soft/symfony-phpunit/tree/v1.1.0"
             },
-            "time": "2025-10-25T14:20:07+00:00"
+            "time": "2026-03-18T15:31:46+00:00"
         },
         {
             "name": "psr/event-dispatcher",

@@ -22,7 +22,7 @@ class JsonContains extends FunctionNode
 
     public Node $jsonDocExpr;
     public Node $jsonValExpr;
-    public Node $jsonPathExpr;
+    public ?Node $jsonPathExpr = null;
 
     public function getSql(SqlWalker $sqlWalker): string
     {
@@ -34,7 +34,7 @@ class JsonContains extends FunctionNode
             $jsonPath = ', ' . $sqlWalker->walkStringPrimary($this->jsonPathExpr);
         }
 
-        if (($sqlWalker->getConnection()->getDatabasePlatform() instanceof MySqlPlatform) === true) {
+        if (true === ($sqlWalker->getConnection()->getDatabasePlatform() instanceof MySqlPlatform)) {
             return \sprintf('%s(%s, %s)', static::FUNCTION_NAME, $jsonDoc, $jsonVal . $jsonPath);
         }
 

@@ -106,7 +106,7 @@ class MysqlLockService
 
             --$this->locks[$lockName]['count'];
 
-            if ($this->locks[$lockName]['count'] > 0) {
+            if (0 < $this->locks[$lockName]['count']) {
                 return $this;
             }
 

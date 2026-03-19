@@ -1,7 +1,7 @@
 {
     "name": "precision-soft/doctrine-utility",
     "type": "library",
-    "version": "v3.1.0",
+    "version": "v3.2.0",
     "description": "doctrine utilities library",
     "keywords": [
         "doctrine",

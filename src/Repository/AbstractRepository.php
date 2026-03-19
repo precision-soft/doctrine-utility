@@ -52,16 +52,16 @@ abstract class AbstractRepository
     ): ?JoinCollection {
         [$genericFilters, $customFilters] = $this->sortFilters($filters, $managerName);
 
-        if (\count($genericFilters) > 0) {
+        if (0 < \count($genericFilters)) {
             $this->attachGenericFilters($queryBuilder, $genericFilters);
         }
 
         $joinCollection = null;
-        if (\count($customFilters) > 0) {
+        if (0 < \count($customFilters)) {
             $joinCollection = $this->attachCustomFilters($queryBuilder, $customFilters);
         }
 
-        if (true === isset($joinCollection) && \count($joinCollection->getJoins()) > 0) {
+        if (true === isset($joinCollection) && 0 < \count($joinCollection->getJoins())) {
             $this->attachJoins($queryBuilder, $joinCollection);
         }
 
@@ -168,7 +168,7 @@ abstract class AbstractRepository
 
         $repository = $this->managerRegistry->getRepository($this->getEntityClass(), $managerName);
 
-        if (($repository instanceof DoctrineRepository) === false) {
+        if (false === ($repository instanceof DoctrineRepository)) {
             throw new Exception(
                 \sprintf(
                     'if you are using `%s` you must use `%s` for the entity repository',

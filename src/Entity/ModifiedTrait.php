@@ -15,7 +15,7 @@ use Doctrine\ORM\Mapping as ORM;
 trait ModifiedTrait
 {
     #[ORM\Column(type: Types::DATETIME_MUTABLE, options: ['default' => 'CURRENT_TIMESTAMP', 'update' => true])]
-    private ?DateTime $modified;
+    private ?DateTime $modified = null;
 
     public function getModified(): ?DateTime
     {

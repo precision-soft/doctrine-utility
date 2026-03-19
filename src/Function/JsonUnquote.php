@@ -26,7 +26,7 @@ class JsonUnquote extends FunctionNode
     {
         $jsonVal = $sqlWalker->walkStringPrimary($this->jsonValExpr);
 
-        if (($sqlWalker->getConnection()->getDatabasePlatform() instanceof MySqlPlatform) === true) {
+        if (true === ($sqlWalker->getConnection()->getDatabasePlatform() instanceof MySqlPlatform)) {
             return \sprintf('%s(%s)', static::FUNCTION_NAME, $jsonVal);
         }
 

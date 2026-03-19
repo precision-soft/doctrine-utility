@@ -21,7 +21,7 @@ class JsonSearch extends AbstractJsonSearch
 
     public Node $jsonDocExpr;
     public Node $jsonSearchExpr;
-    public Node $jsonEscapeExpr;
+    public ?Node $jsonEscapeExpr = null;
     public array $jsonPaths = [];
 
     public function getSql(SqlWalker $sqlWalker): string
@@ -42,7 +42,7 @@ class JsonSearch extends AbstractJsonSearch
             }
         }
 
-        if (($sqlWalker->getConnection()->getDatabasePlatform() instanceof MySqlPlatform) === true) {
+        if (true === ($sqlWalker->getConnection()->getDatabasePlatform() instanceof MySqlPlatform)) {
             return \sprintf('%s(%s, %s, %s)', static::FUNCTION_NAME, $jsonDoc, $mode, $searchArgs);
         }
 

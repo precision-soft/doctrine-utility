@@ -69,7 +69,7 @@ class MySqlWalker extends SqlWalker
                 throw new Exception('ignore index on join hint with invalid parameters');
             }
 
-            if (false === empty(\preg_match('/`' . $table . '`/', $result))) {
+            if (1 === \preg_match('/`' . $table . '`/', $result)) {
                 $result = \preg_replace('/ON/', 'IGNORE INDEX (' . $index . ') ON', $result);
             }
         }

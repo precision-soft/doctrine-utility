@@ -33,7 +33,7 @@ class JsonExtract extends FunctionNode
             $paths[] = $sqlWalker->walkStringPrimary($path);
         }
 
-        if (($sqlWalker->getConnection()->getDatabasePlatform() instanceof MySqlPlatform) === true) {
+        if (true === ($sqlWalker->getConnection()->getDatabasePlatform() instanceof MySqlPlatform)) {
             return \sprintf('%s(%s, %s)', static::FUNCTION_NAME, $jsonDoc, \implode(', ', $paths));
         }
 

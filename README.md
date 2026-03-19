@@ -24,32 +24,24 @@ use PrecisionSoft\Doctrine\Utility\Entity\CreatedTrait;
 use PrecisionSoft\Doctrine\Utility\Entity\ModifiedTrait;
 use PrecisionSoft\Doctrine\Utility\Repository\DoctrineRepository;
 
-/**
- * @ORM\Entity(repositoryClass=DoctrineRepository::class)
- * @ORM\ChangeTrackingPolicy("DEFERRED_EXPLICIT")
- * @ORM\Table(options={"collate":"utf8mb4_general_ci"})
- */
+#[ORM\Entity(repositoryClass: DoctrineRepository::class)]
+#[ORM\ChangeTrackingPolicy('DEFERRED_EXPLICIT')]
+#[ORM\Table(options: ['collate' => 'utf8mb4_general_ci'])]
 class Product
 {
     use CreatedTrait;
     use ModifiedTrait;
 
-    /**
-     * @ORM\Id
-     * @ORM\Column(type="integer", options={"unsigned"=true})
-     * @ORM\GeneratedValue(strategy="AUTO")
-     */
+    #[ORM\Id]
+    #[ORM\Column(type: 'integer', options: ['unsigned' => true])]
+    #[ORM\GeneratedValue(strategy: 'AUTO')]
     private ?int $id = null;
 
-    /**
-     * @ORM\Column(type="string", length=64, nullable=false, unique=true)
-     */
+    #[ORM\Column(type: 'string', length: 64, nullable: false, unique: true)]
     private string $barcode;
 
-    /**
-     * @ORM\ManyToOne(targetEntity=ProductType::class, fetch="EXTRA_LAZY")
-     * @ORM\JoinColumn(nullable=false, onDelete="RESTRICT")
-     */
+    #[ORM\ManyToOne(targetEntity: ProductType::class, fetch: 'EXTRA_LAZY')]
+    #[ORM\JoinColumn(nullable: false, onDelete: 'RESTRICT')]
     private ProductType $productType;
 }
 ```
@@ -129,7 +121,7 @@ class ProductRepository extends AbstractRepository
 ## Dev
 
 ```shell
-git clone git@gitlab.com:precision-soft-open-source/doctrine/utility.git
+git clone git@github.com:precision-soft/doctrine-utility.git
 cd utility
 ./dc build && ./dc up -d
 ```

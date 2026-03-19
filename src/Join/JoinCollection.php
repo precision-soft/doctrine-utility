@@ -18,7 +18,7 @@ class JoinCollection
     /**
      * @return Join[]
      */
-    public function getJoins(): ?array
+    public function getJoins(): array
     {
         return $this->joins;
     }
