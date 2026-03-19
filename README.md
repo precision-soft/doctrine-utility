@@ -116,8 +116,6 @@ class ProductRepository extends AbstractRepository
 
 ## Todo
 
-- unit tests
-
 ## Dev
 
 ```shell

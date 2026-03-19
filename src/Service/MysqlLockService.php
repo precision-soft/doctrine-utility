@@ -56,12 +56,11 @@ class MysqlLockService
             return $this;
         }
 
-        $preparedLockName = null;
         try {
+            $preparedLockName = $this->prepareLockName($lockName, $entityManagerName);
             /** @var EntityManager $entityManager */
             $entityManager = $this->managerRegistry->getManager($entityManagerName);
             $connection = $entityManager->getConnection();
-            $preparedLockName = $this->prepareLockName($lockName, $entityManagerName);
             $sql = \sprintf('SELECT GET_LOCK(%s, %s) AS lockAcquired', $preparedLockName, $timeout);
             $row = $connection->executeQuery($sql)->fetchAssociative();
 
@@ -84,7 +83,7 @@ class MysqlLockService
             }
         } catch (Throwable $throwable) {
             throw new MysqlLockException(
-                \sprintf('failed acquiring lock `%s`/`%s`: `%s`', $lockName, $preparedLockName ?? '~', $throwable->getMessage()),
+                \sprintf('failed acquiring lock `%s`: `%s`', $lockName, $throwable->getMessage()),
                 (int)$throwable->getCode(),
                 $throwable,
             );
@@ -98,7 +97,6 @@ class MysqlLockService
         ?string $entityManagerName = null,
         bool $throwException = false,
     ): self {
-        $preparedLockName = null;
         try {
             if (false === isset($this->locks[$lockName])) {
                 throw new MysqlLockException(
@@ -115,8 +113,7 @@ class MysqlLockService
             /** @var EntityManager $entityManager */
             $entityManager = $this->managerRegistry->getManager($entityManagerName);
             $connection = $entityManager->getConnection();
-            $preparedLockName = $this->locks[$lockName]['preparedLockName'] ?? null;
-            $sql = \sprintf('SELECT RELEASE_LOCK(%s) AS lockReleased', $preparedLockName);
+            $sql = \sprintf('SELECT RELEASE_LOCK(%s) AS lockReleased', $this->locks[$lockName]['preparedLockName']);
             $row = $connection->executeQuery($sql)->fetchAssociative();
 
             switch ((int)$row['lockReleased']) {
@@ -132,7 +129,7 @@ class MysqlLockService
         } catch (Throwable $throwable) {
             if (true === $throwException) {
                 throw new MysqlLockException(
-                    \sprintf('failed releasing lock `%s`/`%s`: %s', $lockName, $preparedLockName ?? '~', $throwable->getMessage()),
+                    \sprintf('failed releasing lock `%s`: %s', $lockName, $throwable->getMessage()),
                     (int)$throwable->getCode(),
                     $throwable,
                 );
