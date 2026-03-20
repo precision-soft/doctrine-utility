@@ -114,8 +114,6 @@ class ProductRepository extends AbstractRepository
 }
 ```
 
-## Todo
-
 ## Dev
 
 ```shell

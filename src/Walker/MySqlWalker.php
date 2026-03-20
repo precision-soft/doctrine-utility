@@ -74,7 +74,7 @@ class MySqlWalker extends SqlWalker
             $this->validateIndexName($table);
 
             if (1 === \preg_match('/`' . \preg_quote($table, '/') . '`/', $result)) {
-                $result = \preg_replace('/ON/', 'IGNORE INDEX (' . $index . ') ON', $result);
+                $result = \preg_replace('/ON/', 'IGNORE INDEX (' . $index . ') ON', $result, 1);
             }
         }
 
