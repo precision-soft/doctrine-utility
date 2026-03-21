@@ -24,7 +24,7 @@ class MySqlWalker extends SqlWalker
     public const HINT_SELECT_FOR_UPDATE = 'MySqlWalker.SelectForUpdate';
     public const HINT_IGNORE_INDEX_ON_JOIN = 'MySqlWalker.IgnoreIndexOnJoin';
 
-    private const INDEX_NAME_PATTERN = '/^[\w`,\s]+$/';
+    private const INDEX_NAME_PATTERN = '/^[\w`, ]+$/';
 
     public function walkFromClause(mixed $fromClause): string
     {
@@ -44,7 +44,7 @@ class MySqlWalker extends SqlWalker
         $result = parent::walkWhereClause($whereClause);
 
         $selectForUpdate = $this->getQuery()->getHint(self::HINT_SELECT_FOR_UPDATE);
-        if (null !== $selectForUpdate && '' !== $selectForUpdate) {
+        if (true === $selectForUpdate) {
             $result .= ' FOR UPDATE';
         }
 
@@ -74,7 +74,7 @@ class MySqlWalker extends SqlWalker
             $this->validateIndexName($table);
 
             if (1 === \preg_match('/`' . \preg_quote($table, '/') . '`/', $result)) {
-                $result = \preg_replace('/ON/', 'IGNORE INDEX (' . $index . ') ON', $result, 1);
+                $result = \preg_replace('/\bON\b/', 'IGNORE INDEX (' . $index . ') ON', $result, 1);
             }
         }
 
