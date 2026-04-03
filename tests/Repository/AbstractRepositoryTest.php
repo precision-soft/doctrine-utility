@@ -35,7 +35,7 @@ final class AbstractRepositoryTest extends AbstractTestCase
         );
     }
 
-    public function test(): void
+    public function testCreateQueryBuilderFromFiltersWithSelectJoins(): void
     {
         $filters = [
             'one' => 'one',
@@ -43,23 +43,23 @@ final class AbstractRepositoryTest extends AbstractTestCase
             'three' => 'three',
         ];
 
-        $method = new ReflectionMethod(AbstractRepository::class, 'createQueryBuilderFromFilters');
-        $method->setAccessible(true);
+        $reflectionMethod = new ReflectionMethod(AbstractRepository::class, 'createQueryBuilderFromFilters');
+        $reflectionMethod->setAccessible(true);
 
-        $mock = $this->get(AbstractRepository::class);
-        $mock->shouldAllowMockingProtectedMethods();
+        $abstractRepositoryMock = $this->get(AbstractRepository::class);
+        $abstractRepositoryMock->shouldAllowMockingProtectedMethods();
 
-        $this->mock($mock);
+        $this->mockAbstractRepository($abstractRepositoryMock);
 
-        $qb = $method->invoke($mock, $filters, true);
+        $queryBuilder = $reflectionMethod->invoke($abstractRepositoryMock, $filters, true);
 
-        static::assertInstanceOf(QueryBuilder::class, $qb);
+        static::assertInstanceOf(QueryBuilder::class, $queryBuilder);
     }
 
     /**
-     * @param AbstractRepository $mock
+     * @param AbstractRepository $abstractRepositoryMock
      */
-    private function mock(MockInterface $mock): void
+    private function mockAbstractRepository(MockInterface $abstractRepositoryMock): void
     {
         $classMetadataMock = Mockery::mock(ClassMetadata::class);
         $classMetadataMock->shouldReceive('hasField')
@@ -74,27 +74,27 @@ final class AbstractRepositoryTest extends AbstractTestCase
             ->byDefault()
             ->andReturnSelf();
 
-        $doctrineRepository = Mockery::mock(DoctrineRepository::class);
-        $doctrineRepository->shouldAllowMockingProtectedMethods();
-        $doctrineRepository->shouldReceive('createQueryBuilder')
+        $doctrineRepositoryMock = Mockery::mock(DoctrineRepository::class);
+        $doctrineRepositoryMock->shouldAllowMockingProtectedMethods();
+        $doctrineRepositoryMock->shouldReceive('createQueryBuilder')
             ->once()
             ->andReturn($queryBuilderMock);
-        $doctrineRepository->shouldReceive('getClassMetadata')
+        $doctrineRepositoryMock->shouldReceive('getClassMetadata')
             ->byDefault()
             ->andReturn($classMetadataMock);
 
-        $managerRegistry = Mockery::mock(ManagerRegistry::class);
-        $managerRegistry->shouldReceive('getRepository')
+        $managerRegistryMock = Mockery::mock(ManagerRegistry::class);
+        $managerRegistryMock->shouldReceive('getRepository')
             ->times(2)
-            ->andReturn($doctrineRepository);
+            ->andReturn($doctrineRepositoryMock);
 
-        $mock->setManagerRegistry($managerRegistry);
+        $abstractRepositoryMock->setManagerRegistry($managerRegistryMock);
 
-        $mock->shouldReceive('getEntityClass')
+        $abstractRepositoryMock->shouldReceive('getEntityClass')
             ->times(2)
             ->andReturn('test');
 
-        $mock->shouldReceive('attachCustomFilters')
+        $abstractRepositoryMock->shouldReceive('attachCustomFilters')
             ->once()
             ->andReturn(
                 (new JoinCollection())->addJoin(

@@ -8,7 +8,7 @@ declare(strict_types=1);
 
 namespace PrecisionSoft\Doctrine\Utility\Function;
 
-use Doctrine\DBAL\Platforms\MySqlPlatform;
+use Doctrine\DBAL\Platforms\MySQLPlatform;
 use Doctrine\ORM\Query\AST\Functions\FunctionNode;
 use Doctrine\ORM\Query\AST\Node;
 use Doctrine\ORM\Query\Parser;
@@ -24,10 +24,10 @@ class JsonUnquote extends FunctionNode
 
     public function getSql(SqlWalker $sqlWalker): string
     {
-        $jsonVal = $sqlWalker->walkStringPrimary($this->jsonValExpr);
+        $jsonValueSql = $sqlWalker->walkStringPrimary($this->jsonValExpr);
 
-        if (true === ($sqlWalker->getConnection()->getDatabasePlatform() instanceof MySqlPlatform)) {
-            return \sprintf('%s(%s)', static::FUNCTION_NAME, $jsonVal);
+        if (true === ($sqlWalker->getConnection()->getDatabasePlatform() instanceof MySQLPlatform)) {
+            return \sprintf('%s(%s)', static::FUNCTION_NAME, $jsonValueSql);
         }
 
         throw new Exception(\sprintf('method `%s` is not supported', static::FUNCTION_NAME));

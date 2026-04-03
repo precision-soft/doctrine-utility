@@ -14,7 +14,10 @@ class DoctrineRepository extends EntityRepository
 {
     final public function hasField(string $fieldName): bool
     {
-        return $this->getClassMetadata()->hasField($fieldName)
-            || (true === $this->getClassMetadata()->hasAssociation($fieldName) && false === $this->getClassMetadata()->isAssociationInverseSide($fieldName));
+        return true === $this->getClassMetadata()->hasField($fieldName)
+            || (
+                true === $this->getClassMetadata()->hasAssociation($fieldName)
+                && false === $this->getClassMetadata()->isAssociationInverseSide($fieldName)
+            );
     }
 }

@@ -8,7 +8,7 @@ declare(strict_types=1);
 
 namespace PrecisionSoft\Doctrine\Utility\Function;
 
-use Doctrine\DBAL\Platforms\MySqlPlatform;
+use Doctrine\DBAL\Platforms\MySQLPlatform;
 use Doctrine\ORM\Query\AST\Node;
 use Doctrine\ORM\Query\Parser;
 use Doctrine\ORM\Query\SqlWalker;
@@ -26,24 +26,24 @@ class JsonSearch extends AbstractJsonSearch
 
     public function getSql(SqlWalker $sqlWalker): string
     {
-        $jsonDoc = $sqlWalker->walkStringPrimary($this->jsonDocExpr);
-        $mode = $sqlWalker->walkStringPrimary($this->mode);
-        $searchArgs = $sqlWalker->walkStringPrimary($this->jsonSearchExpr);
+        $jsonDocumentSql = $sqlWalker->walkStringPrimary($this->jsonDocExpr);
+        $modeSql = $sqlWalker->walkStringPrimary($this->mode);
+        $searchArgsSql = $sqlWalker->walkStringPrimary($this->jsonSearchExpr);
 
         if (null !== $this->jsonEscapeExpr) {
-            $searchArgs .= ', ' . $sqlWalker->walkStringPrimary($this->jsonEscapeExpr);
+            $searchArgsSql .= ', ' . $sqlWalker->walkStringPrimary($this->jsonEscapeExpr);
 
             if ([] !== $this->jsonPaths) {
-                $jsonPaths = [];
-                foreach ($this->jsonPaths as $path) {
-                    $jsonPaths[] = $sqlWalker->walkStringPrimary($path);
+                $walkedPaths = [];
+                foreach ($this->jsonPaths as $jsonPath) {
+                    $walkedPaths[] = $sqlWalker->walkStringPrimary($jsonPath);
                 }
-                $searchArgs .= ', ' . \implode(', ', $jsonPaths);
+                $searchArgsSql .= ', ' . \implode(', ', $walkedPaths);
             }
         }
 
-        if (true === ($sqlWalker->getConnection()->getDatabasePlatform() instanceof MySqlPlatform)) {
-            return \sprintf('%s(%s, %s, %s)', static::FUNCTION_NAME, $jsonDoc, $mode, $searchArgs);
+        if (true === ($sqlWalker->getConnection()->getDatabasePlatform() instanceof MySQLPlatform)) {
+            return \sprintf('%s(%s, %s, %s)', static::FUNCTION_NAME, $jsonDocumentSql, $modeSql, $searchArgsSql);
         }
 
         throw new Exception(\sprintf('method `%s` is not supported', static::FUNCTION_NAME));

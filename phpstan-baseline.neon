@@ -1,0 +1,511 @@
+parameters:
+	ignoreErrors:
+		-
+			message: '#^Cannot access offset ''value'' on Doctrine\\Common\\Lexer\\Token\<Doctrine\\ORM\\Query\\TokenType, string\>\|null\.$#'
+			identifier: offsetAccess.nonOffsetAccessible
+			count: 1
+			path: src/Function/AbstractJsonSearch.php
+
+		-
+			message: '#^Property PrecisionSoft\\Doctrine\\Utility\\Function\\DateFormat\:\:\$firstDateExpression \(Doctrine\\ORM\\Query\\AST\\Node\) does not accept Doctrine\\ORM\\Query\\AST\\Node\|string\.$#'
+			identifier: assign.propertyType
+			count: 1
+			path: src/Function/DateFormat.php
+
+		-
+			message: '#^Property PrecisionSoft\\Doctrine\\Utility\\Function\\DateFormat\:\:\$secondDateExpression \(Doctrine\\ORM\\Query\\AST\\Node\) does not accept Doctrine\\ORM\\Query\\AST\\Node\|string\.$#'
+			identifier: assign.propertyType
+			count: 1
+			path: src/Function/DateFormat.php
+
+		-
+			message: '#^Property PrecisionSoft\\Doctrine\\Utility\\Function\\JsonContainsPath\:\:\$jsonPaths type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Function/JsonContainsPath.php
+
+		-
+			message: '#^Property PrecisionSoft\\Doctrine\\Utility\\Function\\JsonExtract\:\:\$jsonPaths type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Function/JsonExtract.php
+
+		-
+			message: '#^Property PrecisionSoft\\Doctrine\\Utility\\Function\\JsonSearch\:\:\$jsonPaths type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Function/JsonSearch.php
+
+		-
+			message: '#^Method PrecisionSoft\\Doctrine\\Utility\\Join\\JoinCollection\:\:getAliases\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Join/JoinCollection.php
+
+		-
+			message: '#^Property PrecisionSoft\\Doctrine\\Utility\\Join\\JoinCollection\:\:\$joins type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Join/JoinCollection.php
+
+		-
+			message: '#^Method Doctrine\\DBAL\\Statement\:\:executeQuery\(\) invoked with 1 parameter, 0 required\.$#'
+			identifier: arguments.count
+			count: 1
+			path: src/Repository/AbstractRepository.php
+
+		-
+			message: '#^Method PrecisionSoft\\Doctrine\\Utility\\Repository\\AbstractRepository\:\:attachCustomFilters\(\) has parameter \$filters with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Repository/AbstractRepository.php
+
+		-
+			message: '#^Method PrecisionSoft\\Doctrine\\Utility\\Repository\\AbstractRepository\:\:attachFilters\(\) has parameter \$filters with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Repository/AbstractRepository.php
+
+		-
+			message: '#^Method PrecisionSoft\\Doctrine\\Utility\\Repository\\AbstractRepository\:\:attachGenericFilters\(\) has parameter \$filters with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Repository/AbstractRepository.php
+
+		-
+			message: '#^Method PrecisionSoft\\Doctrine\\Utility\\Repository\\AbstractRepository\:\:createQueryBuilderFromFilters\(\) has parameter \$filters with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Repository/AbstractRepository.php
+
+		-
+			message: '#^Method PrecisionSoft\\Doctrine\\Utility\\Repository\\AbstractRepository\:\:execute\(\) has parameter \$parameters with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Repository/AbstractRepository.php
+
+		-
+			message: '#^Method PrecisionSoft\\Doctrine\\Utility\\Repository\\AbstractRepository\:\:getConnection\(\) should return Doctrine\\DBAL\\Connection but returns object\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Repository/AbstractRepository.php
+
+		-
+			message: '#^Method PrecisionSoft\\Doctrine\\Utility\\Repository\\AbstractRepository\:\:sortFilters\(\) has parameter \$filters with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Repository/AbstractRepository.php
+
+		-
+			message: '#^Method PrecisionSoft\\Doctrine\\Utility\\Repository\\AbstractRepository\:\:sortFilters\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Repository/AbstractRepository.php
+
+		-
+			message: '#^Parameter \#1 \$persistentObject of method Doctrine\\Persistence\\ManagerRegistry\:\:getRepository\(\) expects class\-string\<object\>, string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Repository/AbstractRepository.php
+
+		-
+			message: '#^Parameter \#2 \$alias of method Doctrine\\ORM\\QueryBuilder\:\:innerJoin\(\) expects string, string\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Repository/AbstractRepository.php
+
+		-
+			message: '#^Parameter \#2 \$alias of method Doctrine\\ORM\\QueryBuilder\:\:leftJoin\(\) expects string, string\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Repository/AbstractRepository.php
+
+		-
+			message: '#^Unable to resolve the template type T in call to method Doctrine\\Persistence\\ManagerRegistry\:\:getRepository\(\)$#'
+			identifier: argument.templateType
+			count: 1
+			path: src/Repository/AbstractRepository.php
+
+		-
+			message: '#^Class PrecisionSoft\\Doctrine\\Utility\\Repository\\DoctrineRepository extends generic class Doctrine\\ORM\\EntityRepository but does not specify its types\: T$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/Repository/DoctrineRepository.php
+
+		-
+			message: '#^Method PrecisionSoft\\Doctrine\\Utility\\Service\\MysqlLockService\:\:acquireLocks\(\) has parameter \$lockNames with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Service/MysqlLockService.php
+
+		-
+			message: '#^Method PrecisionSoft\\Doctrine\\Utility\\Service\\MysqlLockService\:\:releaseLocks\(\) has parameter \$lockNames with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Service/MysqlLockService.php
+
+		-
+			message: '#^Method PrecisionSoft\\Doctrine\\Utility\\Walker\\MySqlWalker\:\:applyIndexHint\(\) should return string but returns string\|null\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Walker/MySqlWalker.php
+
+		-
+			message: '#^Method PrecisionSoft\\Doctrine\\Utility\\Walker\\MySqlWalker\:\:walkJoinAssociationDeclaration\(\) should return string but returns string\|null\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Walker/MySqlWalker.php
+
+		-
+			message: '#^Call to an undefined method object\:\:getCreated\(\)\.$#'
+			identifier: method.notFound
+			count: 6
+			path: tests/Entity/CreatedTraitTest.php
+
+		-
+			message: '#^Call to an undefined method object\:\:setCreated\(\)\.$#'
+			identifier: method.notFound
+			count: 5
+			path: tests/Entity/CreatedTraitTest.php
+
+		-
+			message: '#^Call to an undefined method object\:\:getModified\(\)\.$#'
+			identifier: method.notFound
+			count: 7
+			path: tests/Entity/ModifiedTraitTest.php
+
+		-
+			message: '#^Call to an undefined method object\:\:setModified\(\)\.$#'
+			identifier: method.notFound
+			count: 5
+			path: tests/Entity/ModifiedTraitTest.php
+
+		-
+			message: '#^Call to an undefined method object\:\:updateModifiedTimestamp\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: tests/Entity/ModifiedTraitTest.php
+
+		-
+			message: '#^Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage\:\:once\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: tests/Function/DateFormatTest.php
+
+		-
+			message: '#^Parameter \#1 \$sqlWalker of method PrecisionSoft\\Doctrine\\Utility\\Function\\DateFormat\:\:getSql\(\) expects Doctrine\\ORM\\Query\\SqlWalker, Mockery\\MockInterface given\.$#'
+			identifier: argument.type
+			count: 1
+			path: tests/Function/DateFormatTest.php
+
+		-
+			message: '#^Property PrecisionSoft\\Doctrine\\Utility\\Function\\DateFormat\:\:\$firstDateExpression \(Doctrine\\ORM\\Query\\AST\\Node\) does not accept Mockery\\MockInterface\.$#'
+			identifier: assign.propertyType
+			count: 1
+			path: tests/Function/DateFormatTest.php
+
+		-
+			message: '#^Property PrecisionSoft\\Doctrine\\Utility\\Function\\DateFormat\:\:\$secondDateExpression \(Doctrine\\ORM\\Query\\AST\\Node\) does not accept Mockery\\MockInterface\.$#'
+			identifier: assign.propertyType
+			count: 1
+			path: tests/Function/DateFormatTest.php
+
+		-
+			message: '#^Call to an undefined method Doctrine\\ORM\\Query\\SqlWalker\|Mockery\\MockInterface\:\:shouldReceive\(\)\.$#'
+			identifier: method.notFound
+			count: 3
+			path: tests/Function/JsonContainsPathTest.php
+
+		-
+			message: '#^Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage\:\:andReturn\(\)\.$#'
+			identifier: method.notFound
+			count: 5
+			path: tests/Function/JsonContainsPathTest.php
+
+		-
+			message: '#^Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage\:\:times\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: tests/Function/JsonContainsPathTest.php
+
+		-
+			message: '#^Parameter \#1 \$sqlWalker of method PrecisionSoft\\Doctrine\\Utility\\Function\\JsonContainsPath\:\:getSql\(\) expects Doctrine\\ORM\\Query\\SqlWalker, Doctrine\\ORM\\Query\\SqlWalker\|Mockery\\MockInterface given\.$#'
+			identifier: argument.type
+			count: 3
+			path: tests/Function/JsonContainsPathTest.php
+
+		-
+			message: '#^Property PrecisionSoft\\Doctrine\\Utility\\Function\\AbstractJsonSearch\:\:\$mode \(Doctrine\\ORM\\Query\\AST\\Node\) does not accept Mockery\\MockInterface\.$#'
+			identifier: assign.propertyType
+			count: 3
+			path: tests/Function/JsonContainsPathTest.php
+
+		-
+			message: '#^Property PrecisionSoft\\Doctrine\\Utility\\Function\\JsonContainsPath\:\:\$jsonDocExpr \(Doctrine\\ORM\\Query\\AST\\Node\) does not accept Mockery\\MockInterface\.$#'
+			identifier: assign.propertyType
+			count: 3
+			path: tests/Function/JsonContainsPathTest.php
+
+		-
+			message: '#^Call to an undefined method Doctrine\\ORM\\Query\\SqlWalker\|Mockery\\MockInterface\:\:shouldReceive\(\)\.$#'
+			identifier: method.notFound
+			count: 3
+			path: tests/Function/JsonContainsTest.php
+
+		-
+			message: '#^Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage\:\:andReturn\(\)\.$#'
+			identifier: method.notFound
+			count: 5
+			path: tests/Function/JsonContainsTest.php
+
+		-
+			message: '#^Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage\:\:times\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: tests/Function/JsonContainsTest.php
+
+		-
+			message: '#^Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage\:\:twice\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: tests/Function/JsonContainsTest.php
+
+		-
+			message: '#^Parameter \#1 \$sqlWalker of method PrecisionSoft\\Doctrine\\Utility\\Function\\JsonContains\:\:getSql\(\) expects Doctrine\\ORM\\Query\\SqlWalker, Doctrine\\ORM\\Query\\SqlWalker\|Mockery\\MockInterface given\.$#'
+			identifier: argument.type
+			count: 3
+			path: tests/Function/JsonContainsTest.php
+
+		-
+			message: '#^Property PrecisionSoft\\Doctrine\\Utility\\Function\\JsonContains\:\:\$jsonDocExpr \(Doctrine\\ORM\\Query\\AST\\Node\) does not accept Mockery\\MockInterface\.$#'
+			identifier: assign.propertyType
+			count: 3
+			path: tests/Function/JsonContainsTest.php
+
+		-
+			message: '#^Property PrecisionSoft\\Doctrine\\Utility\\Function\\JsonContains\:\:\$jsonPathExpr \(Doctrine\\ORM\\Query\\AST\\Node\|null\) does not accept Mockery\\MockInterface\.$#'
+			identifier: assign.propertyType
+			count: 1
+			path: tests/Function/JsonContainsTest.php
+
+		-
+			message: '#^Property PrecisionSoft\\Doctrine\\Utility\\Function\\JsonContains\:\:\$jsonValExpr \(Doctrine\\ORM\\Query\\AST\\Node\) does not accept Mockery\\MockInterface\.$#'
+			identifier: assign.propertyType
+			count: 3
+			path: tests/Function/JsonContainsTest.php
+
+		-
+			message: '#^Call to an undefined method Doctrine\\ORM\\Query\\SqlWalker\|Mockery\\MockInterface\:\:shouldReceive\(\)\.$#'
+			identifier: method.notFound
+			count: 3
+			path: tests/Function/JsonExtractTest.php
+
+		-
+			message: '#^Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage\:\:andReturn\(\)\.$#'
+			identifier: method.notFound
+			count: 5
+			path: tests/Function/JsonExtractTest.php
+
+		-
+			message: '#^Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage\:\:times\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: tests/Function/JsonExtractTest.php
+
+		-
+			message: '#^Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage\:\:twice\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: tests/Function/JsonExtractTest.php
+
+		-
+			message: '#^Parameter \#1 \$sqlWalker of method PrecisionSoft\\Doctrine\\Utility\\Function\\JsonExtract\:\:getSql\(\) expects Doctrine\\ORM\\Query\\SqlWalker, Doctrine\\ORM\\Query\\SqlWalker\|Mockery\\MockInterface given\.$#'
+			identifier: argument.type
+			count: 3
+			path: tests/Function/JsonExtractTest.php
+
+		-
+			message: '#^Property PrecisionSoft\\Doctrine\\Utility\\Function\\JsonExtract\:\:\$jsonDocExpr \(Doctrine\\ORM\\Query\\AST\\Node\) does not accept Mockery\\MockInterface\.$#'
+			identifier: assign.propertyType
+			count: 3
+			path: tests/Function/JsonExtractTest.php
+
+		-
+			message: '#^Call to an undefined method Doctrine\\ORM\\Query\\SqlWalker\|Mockery\\MockInterface\:\:shouldReceive\(\)\.$#'
+			identifier: method.notFound
+			count: 4
+			path: tests/Function/JsonSearchTest.php
+
+		-
+			message: '#^Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage\:\:andReturn\(\)\.$#'
+			identifier: method.notFound
+			count: 5
+			path: tests/Function/JsonSearchTest.php
+
+		-
+			message: '#^Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage\:\:times\(\)\.$#'
+			identifier: method.notFound
+			count: 3
+			path: tests/Function/JsonSearchTest.php
+
+		-
+			message: '#^Parameter \#1 \$sqlWalker of method PrecisionSoft\\Doctrine\\Utility\\Function\\JsonSearch\:\:getSql\(\) expects Doctrine\\ORM\\Query\\SqlWalker, Doctrine\\ORM\\Query\\SqlWalker\|Mockery\\MockInterface given\.$#'
+			identifier: argument.type
+			count: 4
+			path: tests/Function/JsonSearchTest.php
+
+		-
+			message: '#^Property PrecisionSoft\\Doctrine\\Utility\\Function\\AbstractJsonSearch\:\:\$mode \(Doctrine\\ORM\\Query\\AST\\Node\) does not accept Mockery\\MockInterface\.$#'
+			identifier: assign.propertyType
+			count: 4
+			path: tests/Function/JsonSearchTest.php
+
+		-
+			message: '#^Property PrecisionSoft\\Doctrine\\Utility\\Function\\JsonSearch\:\:\$jsonDocExpr \(Doctrine\\ORM\\Query\\AST\\Node\) does not accept Mockery\\MockInterface\.$#'
+			identifier: assign.propertyType
+			count: 4
+			path: tests/Function/JsonSearchTest.php
+
+		-
+			message: '#^Property PrecisionSoft\\Doctrine\\Utility\\Function\\JsonSearch\:\:\$jsonEscapeExpr \(Doctrine\\ORM\\Query\\AST\\Node\|null\) does not accept Mockery\\MockInterface\.$#'
+			identifier: assign.propertyType
+			count: 2
+			path: tests/Function/JsonSearchTest.php
+
+		-
+			message: '#^Property PrecisionSoft\\Doctrine\\Utility\\Function\\JsonSearch\:\:\$jsonSearchExpr \(Doctrine\\ORM\\Query\\AST\\Node\) does not accept Mockery\\MockInterface\.$#'
+			identifier: assign.propertyType
+			count: 4
+			path: tests/Function/JsonSearchTest.php
+
+		-
+			message: '#^Call to an undefined method Doctrine\\ORM\\Query\\SqlWalker\|Mockery\\MockInterface\:\:shouldReceive\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: tests/Function/JsonUnquoteTest.php
+
+		-
+			message: '#^Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage\:\:andReturn\(\)\.$#'
+			identifier: method.notFound
+			count: 4
+			path: tests/Function/JsonUnquoteTest.php
+
+		-
+			message: '#^Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage\:\:once\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: tests/Function/JsonUnquoteTest.php
+
+		-
+			message: '#^Parameter \#1 \$sqlWalker of method PrecisionSoft\\Doctrine\\Utility\\Function\\JsonUnquote\:\:getSql\(\) expects Doctrine\\ORM\\Query\\SqlWalker, Doctrine\\ORM\\Query\\SqlWalker\|Mockery\\MockInterface given\.$#'
+			identifier: argument.type
+			count: 2
+			path: tests/Function/JsonUnquoteTest.php
+
+		-
+			message: '#^Property PrecisionSoft\\Doctrine\\Utility\\Function\\JsonUnquote\:\:\$jsonValExpr \(Doctrine\\ORM\\Query\\AST\\Node\) does not accept Mockery\\MockInterface\.$#'
+			identifier: assign.propertyType
+			count: 2
+			path: tests/Function/JsonUnquoteTest.php
+
+		-
+			message: '#^Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage\:\:byDefault\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: tests/Repository/AbstractRepositoryTest.php
+
+		-
+			message: '#^Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage\:\:once\(\)\.$#'
+			identifier: method.notFound
+			count: 3
+			path: tests/Repository/AbstractRepositoryTest.php
+
+		-
+			message: '#^Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage\:\:times\(\)\.$#'
+			identifier: method.notFound
+			count: 3
+			path: tests/Repository/AbstractRepositoryTest.php
+
+		-
+			message: '#^Call to an undefined method Mockery\\MockInterface\:\:setManagerRegistry\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: tests/Repository/AbstractRepositoryTest.php
+
+		-
+			message: '#^PHPDoc tag @param for parameter \$abstractRepositoryMock with type PrecisionSoft\\Doctrine\\Utility\\Repository\\AbstractRepository is not subtype of native type Mockery\\MockInterface\.$#'
+			identifier: parameter.phpDocType
+			count: 1
+			path: tests/Repository/AbstractRepositoryTest.php
+
+		-
+			message: '#^Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage\:\:with\(\)\.$#'
+			identifier: method.notFound
+			count: 9
+			path: tests/Repository/DoctrineRepositoryTest.php
+
+		-
+			message: '#^Cannot call method getProperty\(\) on ReflectionClass\|false\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: tests/Repository/DoctrineRepositoryTest.php
+
+		-
+			message: '#^Method PrecisionSoft\\Doctrine\\Utility\\Test\\Repository\\DoctrineRepositoryTest\:\:createDoctrineRepositoryWithMetadata\(\) has parameter \$classMetadata with generic class Doctrine\\ORM\\Mapping\\ClassMetadata but does not specify its types\: T$#'
+			identifier: missingType.generics
+			count: 1
+			path: tests/Repository/DoctrineRepositoryTest.php
+
+		-
+			message: '#^Parameter \#1 \$classMetadata of method PrecisionSoft\\Doctrine\\Utility\\Test\\Repository\\DoctrineRepositoryTest\:\:createDoctrineRepositoryWithMetadata\(\) expects Doctrine\\ORM\\Mapping\\ClassMetadata, Mockery\\MockInterface given\.$#'
+			identifier: argument.type
+			count: 4
+			path: tests/Repository/DoctrineRepositoryTest.php
+
+		-
+			message: '#^Call to an undefined method Doctrine\\DBAL\\Connection\|Mockery\\MockInterface\:\:shouldReceive\(\)\.$#'
+			identifier: method.notFound
+			count: 48
+			path: tests/Service/MysqlLockServiceTest.php
+
+		-
+			message: '#^Call to an undefined method Doctrine\\Persistence\\ManagerRegistry\|Mockery\\MockInterface\:\:shouldReceive\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: tests/Service/MysqlLockServiceTest.php
+
+		-
+			message: '#^Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage\:\:andReturn\(\)\.$#'
+			identifier: method.notFound
+			count: 35
+			path: tests/Service/MysqlLockServiceTest.php
+
+		-
+			message: '#^Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage\:\:byDefault\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: tests/Service/MysqlLockServiceTest.php
+
+		-
+			message: '#^Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage\:\:once\(\)\.$#'
+			identifier: method.notFound
+			count: 40
+			path: tests/Service/MysqlLockServiceTest.php
+
+		-
+			message: '#^Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage\:\:twice\(\)\.$#'
+			identifier: method.notFound
+			count: 6
+			path: tests/Service/MysqlLockServiceTest.php
+
+		-
+			message: '#^Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage\:\:with\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: tests/Service/MysqlLockServiceTest.php
+
+		-
+			message: '#^Parameter \#1 \$managerRegistry of class PrecisionSoft\\Doctrine\\Utility\\Service\\MysqlLockService constructor expects Doctrine\\Persistence\\ManagerRegistry, Mockery\\MockInterface given\.$#'
+			identifier: argument.type
+			count: 1
+			path: tests/Service/MysqlLockServiceTest.php

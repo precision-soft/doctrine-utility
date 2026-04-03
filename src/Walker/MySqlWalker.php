@@ -24,31 +24,31 @@ class MySqlWalker extends SqlWalker
     public const HINT_SELECT_FOR_UPDATE = 'MySqlWalker.SelectForUpdate';
     public const HINT_IGNORE_INDEX_ON_JOIN = 'MySqlWalker.IgnoreIndexOnJoin';
 
-    private const INDEX_NAME_PATTERN = '/^[\w`, ]+$/';
+    private const INDEX_NAME_PATTERN = '/^[a-zA-Z_][a-zA-Z0-9_]*(,\s*[a-zA-Z_][a-zA-Z0-9_]*)*$/';
 
     public function walkFromClause(mixed $fromClause): string
     {
         $regex = '/(\s+FROM\s+[`\w\.]+\s+\w*)/';
 
-        $result = parent::walkFromClause($fromClause);
+        $fromClauseSql = parent::walkFromClause($fromClause);
 
-        $result = $this->applyIndexHint($result, $regex, self::HINT_USE_INDEX, 'USE INDEX');
-        $result = $this->applyIndexHint($result, $regex, self::HINT_IGNORE_INDEX, 'IGNORE INDEX');
-        $result = $this->applyIndexHint($result, $regex, self::HINT_FORCE_INDEX, 'FORCE INDEX');
+        $fromClauseSql = $this->applyIndexHint($fromClauseSql, $regex, self::HINT_USE_INDEX, 'USE INDEX');
+        $fromClauseSql = $this->applyIndexHint($fromClauseSql, $regex, self::HINT_IGNORE_INDEX, 'IGNORE INDEX');
+        $fromClauseSql = $this->applyIndexHint($fromClauseSql, $regex, self::HINT_FORCE_INDEX, 'FORCE INDEX');
 
-        return $result;
+        return $fromClauseSql;
     }
 
     public function walkWhereClause(mixed $whereClause): string
     {
-        $result = parent::walkWhereClause($whereClause);
+        $whereClauseSql = parent::walkWhereClause($whereClause);
 
         $selectForUpdate = $this->getQuery()->getHint(self::HINT_SELECT_FOR_UPDATE);
         if (true === $selectForUpdate) {
-            $result .= ' FOR UPDATE';
+            $whereClauseSql .= ' FOR UPDATE';
         }
 
-        return $result;
+        return $whereClauseSql;
     }
 
     public function walkJoinAssociationDeclaration(
@@ -56,7 +56,7 @@ class MySqlWalker extends SqlWalker
         mixed $joinType = Join::JOIN_TYPE_INNER,
         mixed $condExpr = null,
     ): string {
-        $result = parent::walkJoinAssociationDeclaration($joinAssociationDeclaration, $joinType, $condExpr);
+        $joinDeclarationSql = parent::walkJoinAssociationDeclaration($joinAssociationDeclaration, $joinType, $condExpr);
 
         $ignoreIndex = $this->getQuery()->getHint(static::HINT_IGNORE_INDEX_ON_JOIN);
         if (null !== $ignoreIndex && [] !== $ignoreIndex) {
@@ -64,41 +64,41 @@ class MySqlWalker extends SqlWalker
                 throw new Exception('ignore index on join hint with invalid parameters');
             }
 
-            [$index, $table] = $ignoreIndex;
+            [$indexName, $tableName] = $ignoreIndex;
 
-            if (null === $table || '' === $table) {
+            if (null === $tableName || '' === $tableName) {
                 throw new Exception('ignore index on join hint with invalid parameters');
             }
 
-            $this->validateIndexName($index);
-            $this->validateIndexName($table);
+            $this->validateIndexName($indexName);
+            $this->validateIndexName($tableName);
 
-            if (1 === \preg_match('/`' . \preg_quote($table, '/') . '`/', $result)) {
-                $result = \preg_replace('/\bON\b/', 'IGNORE INDEX (' . $index . ') ON', $result, 1);
+            if (1 === \preg_match('/`' . \preg_quote($tableName, '/') . '`/', $joinDeclarationSql)) {
+                $joinDeclarationSql = \preg_replace('/\bON\b/', 'IGNORE INDEX (' . $indexName . ') ON', $joinDeclarationSql, 1);
             }
         }
 
-        return $result;
+        return $joinDeclarationSql;
     }
 
-    private function applyIndexHint(string $result, string $regex, string $hintName, string $indexType): string
+    private function applyIndexHint(string $sqlFragment, string $regex, string $hintName, string $indexType): string
     {
-        $index = $this->getQuery()->getHint($hintName);
+        $indexName = $this->getQuery()->getHint($hintName);
 
-        if (null === $index || '' === $index) {
-            return $result;
+        if (null === $indexName || '' === $indexName) {
+            return $sqlFragment;
         }
 
-        $this->validateIndexName($index);
+        $this->validateIndexName($indexName);
 
-        return \preg_replace($regex, '\1 ' . $indexType . ' (' . $index . ')', $result);
+        return \preg_replace($regex, '\1 ' . $indexType . ' (' . $indexName . ')', $sqlFragment);
     }
 
-    private function validateIndexName(string $index): void
+    private function validateIndexName(string $indexName): void
     {
-        if (1 !== \preg_match(self::INDEX_NAME_PATTERN, $index)) {
+        if (1 !== \preg_match(self::INDEX_NAME_PATTERN, $indexName)) {
             throw new Exception(
-                \sprintf('invalid index name `%s`', $index),
+                \sprintf('invalid index name `%s`', $indexName),
             );
         }
     }

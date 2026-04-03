@@ -61,7 +61,7 @@ abstract class AbstractRepository
             $joinCollection = $this->attachCustomFilters($queryBuilder, $customFilters);
         }
 
-        if (true === isset($joinCollection) && 0 < \count($joinCollection->getJoins())) {
+        if (null !== $joinCollection && 0 < \count($joinCollection->getJoins())) {
             $this->attachJoins($queryBuilder, $joinCollection);
         }
 
@@ -119,13 +119,13 @@ abstract class AbstractRepository
 
         $doctrineRepository = $this->getDoctrineRepository($managerName);
 
-        foreach ($filters as $filter => $value) {
-            if (true === $doctrineRepository->hasField($filter)) {
-                $genericFilters[$filter] = $value;
+        foreach ($filters as $filterName => $filterValue) {
+            if (true === $doctrineRepository->hasField($filterName)) {
+                $genericFilters[$filterName] = $filterValue;
                 continue;
             }
 
-            $customFilters[$filter] = $value;
+            $customFilters[$filterName] = $filterValue;
         }
 
         return [$genericFilters, $customFilters];
@@ -183,7 +183,6 @@ abstract class AbstractRepository
 
     protected function getManagerName(): ?string
     {
-        /* overwrite if the entity has a different manager than the default */
         return null;
     }
 
@@ -200,11 +199,11 @@ abstract class AbstractRepository
         QueryBuilder $queryBuilder,
         array $filters,
     ): void {
-        foreach ($filters as $key => $value) {
-            $condition = \is_array($value) ? "IN (:{$key})" : "= :{$key}";
+        foreach ($filters as $filterName => $filterValue) {
+            $filterCondition = true === \is_array($filterValue) ? "IN (:{$filterName})" : "= :{$filterName}";
 
-            $queryBuilder->andWhere(static::getAlias() . ".{$key} {$condition}")
-                ->setParameter($key, $value);
+            $queryBuilder->andWhere(static::getAlias() . ".{$filterName} {$filterCondition}")
+                ->setParameter($filterName, $filterValue);
         }
     }
 }

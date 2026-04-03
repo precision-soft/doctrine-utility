@@ -15,14 +15,14 @@ use Doctrine\ORM\Mapping as ORM;
 trait CreatedTrait
 {
     #[ORM\Column(type: Types::DATETIME_MUTABLE, options: ['default' => 'CURRENT_TIMESTAMP'])]
-    private ?DateTime $created;
+    private ?DateTime $created = null;
 
     public function getCreated(): ?DateTime
     {
         return $this->created;
     }
 
-    public function setCreated(DateTime $created): self
+    public function setCreated(DateTime $created): static
     {
         $this->created = $created;
 

@@ -8,7 +8,7 @@ declare(strict_types=1);
 
 namespace PrecisionSoft\Doctrine\Utility\Function;
 
-use Doctrine\DBAL\Platforms\MySqlPlatform;
+use Doctrine\DBAL\Platforms\MySQLPlatform;
 use Doctrine\ORM\Query\AST\Functions\FunctionNode;
 use Doctrine\ORM\Query\AST\Node;
 use Doctrine\ORM\Query\Parser;
@@ -21,20 +21,19 @@ class JsonExtract extends FunctionNode
     public const FUNCTION_NAME = 'JSON_EXTRACT';
 
     public Node $jsonDocExpr;
-    public Node $firstJsonPathExpr;
     public array $jsonPaths = [];
 
     public function getSql(SqlWalker $sqlWalker): string
     {
-        $jsonDoc = $sqlWalker->walkStringPrimary($this->jsonDocExpr);
+        $jsonDocumentSql = $sqlWalker->walkStringPrimary($this->jsonDocExpr);
 
-        $paths = [];
-        foreach ($this->jsonPaths as $path) {
-            $paths[] = $sqlWalker->walkStringPrimary($path);
+        $walkedPaths = [];
+        foreach ($this->jsonPaths as $jsonPath) {
+            $walkedPaths[] = $sqlWalker->walkStringPrimary($jsonPath);
         }
 
-        if (true === ($sqlWalker->getConnection()->getDatabasePlatform() instanceof MySqlPlatform)) {
-            return \sprintf('%s(%s, %s)', static::FUNCTION_NAME, $jsonDoc, \implode(', ', $paths));
+        if (true === ($sqlWalker->getConnection()->getDatabasePlatform() instanceof MySQLPlatform)) {
+            return \sprintf('%s(%s, %s)', static::FUNCTION_NAME, $jsonDocumentSql, \implode(', ', $walkedPaths));
         }
 
         throw new Exception(\sprintf('method `%s` is not supported', static::FUNCTION_NAME));
@@ -49,8 +48,7 @@ class JsonExtract extends FunctionNode
 
         $parser->match(TokenType::T_COMMA);
 
-        $this->firstJsonPathExpr = $parser->StringPrimary();
-        $this->jsonPaths[] = $this->firstJsonPathExpr;
+        $this->jsonPaths[] = $parser->StringPrimary();
 
         while (true === $parser->getLexer()->isNextToken(TokenType::T_COMMA)) {
             $parser->match(TokenType::T_COMMA);

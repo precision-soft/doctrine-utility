@@ -1,12 +1,12 @@
 # Doctrine utility library
 
-Doctrine custom types and functions.
+Doctrine custom types, functions, and services for **MySQL**.
 
 **You may fork and modify it as you wish.**
 
 Any suggestions are welcomed.
 
-## Usage for `\PrecisionSoft\Doctrine\Utility\Repository\AbstractRepository` and `\PrecisionSoft\Doctrine\Utility\Repository\DoctrineRepository`
+## Usage for `AbstractRepository` and `DoctrineRepository`
 
 The purposes for these classes are:
 
@@ -17,6 +17,10 @@ The purposes for these classes are:
 **Product.php**
 
 ```php
+<?php
+
+declare(strict_types=1);
+
 namespace Acme\Domain\Product\Entity;
 
 use Doctrine\ORM\Mapping as ORM;
@@ -49,6 +53,10 @@ class Product
 **ProductRepository.php**
 
 ```php
+<?php
+
+declare(strict_types=1);
+
 namespace Acme\Domain\Product\Repository;
 
 use Acme\Domain\Product\Entity\Product;
@@ -63,7 +71,7 @@ class ProductRepository extends AbstractRepository
 {
     public const JOIN_PRODUCT_TYPE = 'joinProductType';
 
-    public static function getEntityClass(): string
+    protected function getEntityClass(): string
     {
         return Product::class;
     }
@@ -114,10 +122,112 @@ class ProductRepository extends AbstractRepository
 }
 ```
 
+## DQL Functions
+
+This library provides MySQL-specific DQL functions. Register them in your Doctrine configuration:
+
+```php
+use PrecisionSoft\Doctrine\Utility\Function\JsonContains;
+use PrecisionSoft\Doctrine\Utility\Function\JsonContainsPath;
+use PrecisionSoft\Doctrine\Utility\Function\JsonExtract;
+use PrecisionSoft\Doctrine\Utility\Function\JsonSearch;
+use PrecisionSoft\Doctrine\Utility\Function\JsonUnquote;
+use PrecisionSoft\Doctrine\Utility\Function\DateFormat;
+
+```
+
+Available functions:
+
+| Function             | DQL Usage                                                     | Description                                                     |
+|----------------------|---------------------------------------------------------------|-----------------------------------------------------------------|
+| `JSON_CONTAINS`      | `JSON_CONTAINS(field, value [, path])`                        | Test whether a JSON document contains a specific value          |
+| `JSON_CONTAINS_PATH` | `JSON_CONTAINS_PATH(field, 'one'/'all', path [, ...])`        | Test whether a JSON document contains data at one or more paths |
+| `JSON_EXTRACT`       | `JSON_EXTRACT(field, path [, ...])`                           | Extract data from a JSON document                               |
+| `JSON_SEARCH`        | `JSON_SEARCH(field, 'one'/'all', search [, escape, path...])` | Search for a string in a JSON document                          |
+| `JSON_UNQUOTE`       | `JSON_UNQUOTE(value)`                                         | Unquote a JSON value                                            |
+| `DATE_FORMAT`        | `DATE_FORMAT(date, format)`                                   | Format a date                                                   |
+
+## MysqlLockService
+
+A service for MySQL named locks (advisory locks) via `GET_LOCK()` / `RELEASE_LOCK()`.
+
+```php
+use PrecisionSoft\Doctrine\Utility\Service\MysqlLockService;
+
+public function __construct(private MysqlLockService $lockService) {}
+
+$lockService->acquire('my-lock', timeout: 5);
+
+$isLocked = $lockService->isLocked('my-lock');
+
+$lockService->release('my-lock');
+
+$lockService->acquireLocks(['lock-a', 'lock-b'], timeout: 5);
+
+$lockService->releaseLocks(['lock-a', 'lock-b']);
+$lockService->releaseLocks();
+```
+
+Lock names longer than 64 characters are automatically hashed to fit MySQL's limit. Locks are reference-counted: calling `acquire()` multiple times with the same name increments a counter, and `release()` decrements it, only actually releasing the MySQL lock when the count reaches zero.
+
+All errors throw `MysqlLockException`.
+
+## MySqlWalker (USE/FORCE/IGNORE INDEX)
+
+A custom SQL walker for controlling MySQL index hints in DQL queries.
+
+```php
+use Doctrine\ORM\Query;
+use PrecisionSoft\Doctrine\Utility\Walker\MySqlWalker;
+
+$query = $entityManager->createQuery('...');
+$query->setHint(Query::HINT_CUSTOM_OUTPUT_WALKER, MySqlWalker::class);
+
+$query->setHint(MySqlWalker::HINT_USE_INDEX, 'my_index');
+$query->setHint(MySqlWalker::HINT_FORCE_INDEX, 'PRIMARY');
+$query->setHint(MySqlWalker::HINT_IGNORE_INDEX, 'PRIMARY, other_index');
+$query->setHint(MySqlWalker::HINT_IGNORE_INDEX_ON_JOIN, ['my_index', 'joined_table']);
+$query->setHint(MySqlWalker::HINT_SELECT_FOR_UPDATE, true);
+```
+
+Index names are validated against `[a-zA-Z_][a-zA-Z0-9_]*` pattern for safety.
+
+## Entity Traits
+
+### CreatedTrait
+
+Adds a `created` column (`DATETIME`, defaults to `CURRENT_TIMESTAMP`) with getter/setter.
+
+```php
+use PrecisionSoft\Doctrine\Utility\Entity\CreatedTrait;
+
+class MyEntity
+{
+    use CreatedTrait;
+}
+```
+
+### ModifiedTrait
+
+Adds a `modified` column (`DATETIME`, defaults to `CURRENT_TIMESTAMP`) with getter/setter and an automatic `#[ORM\PreUpdate]` callback.
+
+**Important:** The consuming entity must have the `#[ORM\HasLifecycleCallbacks]` attribute for the automatic update to work.
+
+```php
+use Doctrine\ORM\Mapping as ORM;
+use PrecisionSoft\Doctrine\Utility\Entity\ModifiedTrait;
+
+#[ORM\HasLifecycleCallbacks]
+class MyEntity
+{
+    use ModifiedTrait;
+}
+```
+
 ## Dev
 
 ```shell
 git clone git@github.com:precision-soft/doctrine-utility.git
-cd utility
+cd doctrine-utility
 ./dc build && ./dc up -d
 ```

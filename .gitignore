@@ -5,4 +5,6 @@
 /.phpcs-cache
 /.phpunit.result.cache
 /*.zip
-/.claude
+/.claude/
+/CLAUDE.md
+/AUDIT_REPORT.md

@@ -8,7 +8,7 @@ declare(strict_types=1);
 
 namespace PrecisionSoft\Doctrine\Utility\Function;
 
-use Doctrine\DBAL\Platforms\MySqlPlatform;
+use Doctrine\DBAL\Platforms\MySQLPlatform;
 use Doctrine\ORM\Query\AST\Functions\FunctionNode;
 use Doctrine\ORM\Query\AST\Node;
 use Doctrine\ORM\Query\Parser;
@@ -26,16 +26,16 @@ class JsonContains extends FunctionNode
 
     public function getSql(SqlWalker $sqlWalker): string
     {
-        $jsonDoc = $sqlWalker->walkStringPrimary($this->jsonDocExpr);
-        $jsonVal = $sqlWalker->walkStringPrimary($this->jsonValExpr);
+        $jsonDocumentSql = $sqlWalker->walkStringPrimary($this->jsonDocExpr);
+        $jsonValueSql = $sqlWalker->walkStringPrimary($this->jsonValExpr);
 
-        $jsonPath = '';
+        $jsonPathSql = '';
         if (null !== $this->jsonPathExpr) {
-            $jsonPath = ', ' . $sqlWalker->walkStringPrimary($this->jsonPathExpr);
+            $jsonPathSql = ', ' . $sqlWalker->walkStringPrimary($this->jsonPathExpr);
         }
 
-        if (true === ($sqlWalker->getConnection()->getDatabasePlatform() instanceof MySqlPlatform)) {
-            return \sprintf('%s(%s, %s)', static::FUNCTION_NAME, $jsonDoc, $jsonVal . $jsonPath);
+        if (true === ($sqlWalker->getConnection()->getDatabasePlatform() instanceof MySQLPlatform)) {
+            return \sprintf('%s(%s, %s)', static::FUNCTION_NAME, $jsonDocumentSql, $jsonValueSql . $jsonPathSql);
         }
 
         throw new Exception(\sprintf('method `%s` is not supported', static::FUNCTION_NAME));
