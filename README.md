@@ -126,14 +126,18 @@ class ProductRepository extends AbstractRepository
 
 This library provides MySQL-specific DQL functions. Register them in your Doctrine configuration:
 
-```php
-use PrecisionSoft\Doctrine\Utility\Function\JsonContains;
-use PrecisionSoft\Doctrine\Utility\Function\JsonContainsPath;
-use PrecisionSoft\Doctrine\Utility\Function\JsonExtract;
-use PrecisionSoft\Doctrine\Utility\Function\JsonSearch;
-use PrecisionSoft\Doctrine\Utility\Function\JsonUnquote;
-use PrecisionSoft\Doctrine\Utility\Function\DateFormat;
-
+```yaml
+# config/packages/doctrine.yaml
+doctrine:
+    orm:
+        dql:
+            string_functions:
+                JSON_CONTAINS: PrecisionSoft\Doctrine\Utility\Function\JsonContains
+                JSON_CONTAINS_PATH: PrecisionSoft\Doctrine\Utility\Function\JsonContainsPath
+                JSON_EXTRACT: PrecisionSoft\Doctrine\Utility\Function\JsonExtract
+                JSON_SEARCH: PrecisionSoft\Doctrine\Utility\Function\JsonSearch
+                JSON_UNQUOTE: PrecisionSoft\Doctrine\Utility\Function\JsonUnquote
+                DATE_FORMAT: PrecisionSoft\Doctrine\Utility\Function\DateFormat
 ```
 
 Available functions:

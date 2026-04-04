@@ -8,7 +8,6 @@ declare(strict_types=1);
 
 namespace PrecisionSoft\Doctrine\Utility\Service;
 
-use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManager;
 use Doctrine\Persistence\ManagerRegistry;
 use PrecisionSoft\Doctrine\Utility\Exception\MysqlLockException;
@@ -32,8 +31,12 @@ class MysqlLockService
     public function isLocked(string $lockName, ?string $entityManagerName = null): bool
     {
         try {
-            /** @var EntityManager $entityManager */
             $entityManager = $this->managerRegistry->getManager($entityManagerName);
+
+            if (false === $entityManager instanceof EntityManager) {
+                throw new MysqlLockException(\sprintf('Manager "%s" is not an instance of EntityManager.', $entityManagerName));
+            }
+
             $connection = $entityManager->getConnection();
             $lockStatusQuery = \sprintf(
                 'SELECT IS_FREE_LOCK(%s) AS lockIsFree',
@@ -47,6 +50,10 @@ class MysqlLockService
 
             return 1 !== (int)$lockStatusRow['lockIsFree'];
         } catch (Throwable $throwable) {
+            if (true === $throwable instanceof MysqlLockException) {
+                throw $throwable;
+            }
+
             throw new MysqlLockException($throwable->getMessage(), (int)$throwable->getCode(), $throwable);
         }
     }
@@ -67,8 +74,12 @@ class MysqlLockService
 
         try {
             $preparedLockName = $this->prepareLockName($lockName, $entityManagerName);
-            /** @var EntityManager $entityManager */
             $entityManager = $this->managerRegistry->getManager($entityManagerName);
+
+            if (false === $entityManager instanceof EntityManager) {
+                throw new MysqlLockException(\sprintf('Manager "%s" is not an instance of EntityManager.', $entityManagerName));
+            }
+
             $connection = $entityManager->getConnection();
             $acquireQuery = \sprintf('SELECT GET_LOCK(%s, %s) AS lockAcquired', $preparedLockName, $timeout);
             $acquireRow = $connection->executeQuery($acquireQuery)->fetchAssociative();
@@ -99,6 +110,10 @@ class MysqlLockService
                     );
             }
         } catch (Throwable $throwable) {
+            if (true === $throwable instanceof MysqlLockException) {
+                throw $throwable;
+            }
+
             throw new MysqlLockException(
                 \sprintf('failed acquiring lock `%s`: `%s`', $lockName, $throwable->getMessage()),
                 (int)$throwable->getCode(),
@@ -129,8 +144,12 @@ class MysqlLockService
                 return $this;
             }
 
-            /** @var EntityManager $entityManager */
             $entityManager = $this->managerRegistry->getManager($entityManagerName);
+
+            if (false === $entityManager instanceof EntityManager) {
+                throw new MysqlLockException(\sprintf('Manager "%s" is not an instance of EntityManager.', $entityManagerName));
+            }
+
             $connection = $entityManager->getConnection();
             $releaseQuery = \sprintf('SELECT RELEASE_LOCK(%s) AS lockReleased', $this->locks[$lockKey]['preparedLockName']);
             $releaseRow = $connection->executeQuery($releaseQuery)->fetchAssociative();
@@ -151,6 +170,10 @@ class MysqlLockService
             }
         } catch (Throwable $throwable) {
             if (true === $throwException) {
+                if (true === $throwable instanceof MysqlLockException) {
+                    throw $throwable;
+                }
+
                 throw new MysqlLockException(
                     \sprintf('failed releasing lock `%s`: %s', $lockName, $throwable->getMessage()),
                     (int)$throwable->getCode(),
@@ -187,7 +210,7 @@ class MysqlLockService
         if (null === $lockNames) {
             foreach ($this->locks as $lockData) {
                 try {
-                    $this->release($lockData['lockName'], $lockData['entityManagerName']);
+                    $this->release($lockData['lockName'], $lockData['entityManagerName'], throwException: true);
                 } catch (Throwable $throwable) {
                     if (true === $throwException) {
                         throw new MysqlLockException($throwable->getMessage(), (int)$throwable->getCode(), $throwable);
@@ -197,7 +220,7 @@ class MysqlLockService
         } else {
             foreach ($lockNames as $lockName) {
                 try {
-                    $this->release($lockName, $entityManagerName);
+                    $this->release($lockName, $entityManagerName, throwException: true);
                 } catch (Throwable $throwable) {
                     if (true === $throwException) {
                         throw new MysqlLockException($throwable->getMessage(), (int)$throwable->getCode(), $throwable);
@@ -220,12 +243,12 @@ class MysqlLockService
             $lockName = \substr($lockName, 0, 10) . '>>' . \md5($lockName) . '<<' . \substr($lockName, -10);
         }
 
-        /** @var EntityManager $entityManager */
         $entityManager = $this->managerRegistry->getManager($entityManagerName);
 
-        /** @var Connection $connection */
-        $connection = $entityManager->getConnection();
+        if (false === $entityManager instanceof EntityManager) {
+            throw new MysqlLockException(\sprintf('Manager "%s" is not an instance of EntityManager.', $entityManagerName));
+        }
 
-        return $connection->quote($lockName);
+        return $entityManager->getConnection()->quote($lockName);
     }
 }

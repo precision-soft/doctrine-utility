@@ -9,14 +9,21 @@ declare(strict_types=1);
 namespace PrecisionSoft\Doctrine\Utility\Test\Entity;
 
 use DateTime;
-use PHPUnit\Framework\TestCase;
 use PrecisionSoft\Doctrine\Utility\Entity\ModifiedTrait;
+use PrecisionSoft\Symfony\Phpunit\MockDto;
+use PrecisionSoft\Symfony\Phpunit\TestCase\AbstractTestCase;
+use stdClass;
 
 /**
  * @internal
  */
-final class ModifiedTraitTest extends TestCase
+final class ModifiedTraitTest extends AbstractTestCase
 {
+    public static function getMockDto(): MockDto
+    {
+        return new MockDto(stdClass::class);
+    }
+
     /** @phpstan-var object */
     private object $entity;
 

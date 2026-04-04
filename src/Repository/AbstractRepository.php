@@ -80,7 +80,11 @@ abstract class AbstractRepository
     ): Result {
         $stmt = $this->getConnection($connectionName)->prepare($query);
 
-        return $stmt->executeQuery($parameters);
+        foreach ($parameters as $parameterKey => $parameterValue) {
+            $stmt->bindValue($parameterKey, $parameterValue);
+        }
+
+        return $stmt->executeQuery();
     }
 
     final protected function getConnection(

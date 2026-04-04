@@ -225,7 +225,7 @@ final class MysqlLockServiceTest extends TestCase
             ->andReturn($queryResult);
 
         $this->expectException(MysqlLockException::class);
-        $this->expectExceptionMessage('failed acquiring lock');
+        $this->expectExceptionMessage('another operation with the same id is already in progress');
 
         $this->mysqlLockService->acquire('test_lock');
     }
@@ -244,7 +244,7 @@ final class MysqlLockServiceTest extends TestCase
             ->andReturn($queryResult);
 
         $this->expectException(MysqlLockException::class);
-        $this->expectExceptionMessage('failed acquiring lock');
+        $this->expectExceptionMessage('failed to acquire lock: invalid response');
 
         $this->mysqlLockService->acquire('test_lock');
     }
@@ -263,7 +263,7 @@ final class MysqlLockServiceTest extends TestCase
             ->andReturn($queryResult);
 
         $this->expectException(MysqlLockException::class);
-        $this->expectExceptionMessage('failed acquiring lock');
+        $this->expectExceptionMessage('failed to acquire lock: invalid response');
 
         $this->mysqlLockService->acquire('test_lock');
     }
@@ -322,7 +322,7 @@ final class MysqlLockServiceTest extends TestCase
     public function testReleaseNonExistentLockThrowsWhenRequested(): void
     {
         $this->expectException(MysqlLockException::class);
-        $this->expectExceptionMessage('failed releasing lock');
+        $this->expectExceptionMessage('the lock "non_existent" is not currently acquired');
 
         $this->mysqlLockService->release('non_existent', null, true);
     }
@@ -348,7 +348,7 @@ final class MysqlLockServiceTest extends TestCase
         $this->mysqlLockService->acquire('test_lock');
 
         $this->expectException(MysqlLockException::class);
-        $this->expectExceptionMessage('failed releasing lock');
+        $this->expectExceptionMessage('lock was not established by this thread');
 
         $this->mysqlLockService->release('test_lock', null, true);
     }
@@ -374,7 +374,7 @@ final class MysqlLockServiceTest extends TestCase
         $this->mysqlLockService->acquire('test_lock');
 
         $this->expectException(MysqlLockException::class);
-        $this->expectExceptionMessage('failed releasing lock');
+        $this->expectExceptionMessage('failed to release lock: invalid response');
 
         $this->mysqlLockService->release('test_lock', null, true);
     }
@@ -400,7 +400,7 @@ final class MysqlLockServiceTest extends TestCase
         $this->mysqlLockService->acquire('test_lock');
 
         $this->expectException(MysqlLockException::class);
-        $this->expectExceptionMessage('failed releasing lock');
+        $this->expectExceptionMessage('failed to release lock: invalid response');
 
         $this->mysqlLockService->release('test_lock', null, true);
     }
@@ -494,11 +494,11 @@ final class MysqlLockServiceTest extends TestCase
         static::assertSame($this->mysqlLockService, $returnValue);
     }
 
-    public function testReleaseLocksDoesNotThrowForNonexistentLockWhenThrowTrue(): void
+    public function testReleaseLocksThrowsForNonexistentLockWhenThrowTrue(): void
     {
-        $returnValue = $this->mysqlLockService->releaseLocks(['nonexistent_lock'], null, true);
+        $this->expectException(MysqlLockException::class);
 
-        static::assertSame($this->mysqlLockService, $returnValue);
+        $this->mysqlLockService->releaseLocks(['nonexistent_lock'], null, true);
     }
 
     public function testPrepareLockNameTruncatesLongNames(): void

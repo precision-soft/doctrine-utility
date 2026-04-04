@@ -8,16 +8,13 @@ declare(strict_types=1);
 
 namespace PrecisionSoft\Doctrine\Utility\Test\Function;
 
-use Doctrine\DBAL\Connection;
-use Doctrine\DBAL\Platforms\MySQLPlatform;
-use Doctrine\DBAL\Platforms\PostgreSQLPlatform;
 use Doctrine\ORM\Query\AST\Node;
-use Doctrine\ORM\Query\SqlWalker;
 use Mockery;
 use Mockery\Adapter\Phpunit\MockeryPHPUnitIntegration;
 use PHPUnit\Framework\TestCase;
 use PrecisionSoft\Doctrine\Utility\Exception\Exception;
 use PrecisionSoft\Doctrine\Utility\Function\JsonContainsPath;
+use PrecisionSoft\Doctrine\Utility\Test\Function\Trait\SqlWalkerTestTrait;
 use ReflectionClass;
 
 /**
@@ -26,6 +23,7 @@ use ReflectionClass;
 final class JsonContainsPathTest extends TestCase
 {
     use MockeryPHPUnitIntegration;
+    use SqlWalkerTestTrait;
 
     public function testFunctionNameConstant(): void
     {
@@ -90,29 +88,4 @@ final class JsonContainsPathTest extends TestCase
         return $reflectionClass->newInstanceWithoutConstructor();
     }
 
-    private function createMysqlSqlWalker(): SqlWalker|Mockery\MockInterface
-    {
-        $connection = Mockery::mock(Connection::class);
-        $connection->shouldReceive('getDatabasePlatform')
-            ->andReturn(new MySQLPlatform());
-
-        $sqlWalker = Mockery::mock(SqlWalker::class);
-        $sqlWalker->shouldReceive('getConnection')
-            ->andReturn($connection);
-
-        return $sqlWalker;
-    }
-
-    private function createNonMysqlSqlWalker(): SqlWalker|Mockery\MockInterface
-    {
-        $connection = Mockery::mock(Connection::class);
-        $connection->shouldReceive('getDatabasePlatform')
-            ->andReturn(new PostgreSQLPlatform());
-
-        $sqlWalker = Mockery::mock(SqlWalker::class);
-        $sqlWalker->shouldReceive('getConnection')
-            ->andReturn($connection);
-
-        return $sqlWalker;
-    }
 }

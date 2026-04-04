@@ -59,7 +59,7 @@ class MySqlWalker extends SqlWalker
         $joinDeclarationSql = parent::walkJoinAssociationDeclaration($joinAssociationDeclaration, $joinType, $condExpr);
 
         $ignoreIndex = $this->getQuery()->getHint(static::HINT_IGNORE_INDEX_ON_JOIN);
-        if (null !== $ignoreIndex && [] !== $ignoreIndex) {
+        if (true === \is_array($ignoreIndex) && [] !== $ignoreIndex) {
             if (2 !== \count($ignoreIndex)) {
                 throw new Exception('ignore index on join hint with invalid parameters');
             }
@@ -74,7 +74,13 @@ class MySqlWalker extends SqlWalker
             $this->validateIndexName($tableName);
 
             if (1 === \preg_match('/`' . \preg_quote($tableName, '/') . '`/', $joinDeclarationSql)) {
-                $joinDeclarationSql = \preg_replace('/\bON\b/', 'IGNORE INDEX (' . $indexName . ') ON', $joinDeclarationSql, 1);
+                $replacedJoinDeclarationSql = \preg_replace('/\bON\b/', 'IGNORE INDEX (' . $indexName . ') ON', $joinDeclarationSql, 1);
+
+                if (null === $replacedJoinDeclarationSql) {
+                    throw new Exception('preg_replace failed on join declaration SQL');
+                }
+
+                $joinDeclarationSql = $replacedJoinDeclarationSql;
             }
         }
 
@@ -85,13 +91,19 @@ class MySqlWalker extends SqlWalker
     {
         $indexName = $this->getQuery()->getHint($hintName);
 
-        if (null === $indexName || '' === $indexName) {
+        if (false === \is_string($indexName) || '' === $indexName) {
             return $sqlFragment;
         }
 
         $this->validateIndexName($indexName);
 
-        return \preg_replace($regex, '\1 ' . $indexType . ' (' . $indexName . ')', $sqlFragment);
+        $replacedSqlFragment = \preg_replace($regex, '\1 ' . $indexType . ' (' . $indexName . ')', $sqlFragment, 1);
+
+        if (null === $replacedSqlFragment) {
+            throw new Exception('preg_replace failed on SQL fragment');
+        }
+
+        return $replacedSqlFragment;
     }
 
     private function validateIndexName(string $indexName): void
