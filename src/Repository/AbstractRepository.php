@@ -23,13 +23,15 @@ abstract class AbstractRepository
     public const JOIN_LEFT = Join::LEFT_JOIN;
     public const JOIN_INNER = Join::INNER_JOIN;
 
+    private static array $aliasCache = [];
+
     private ManagerRegistry $managerRegistry;
 
     abstract protected function getEntityClass(): string;
 
     public static function getAlias(): string
     {
-        return \lcfirst((new ReflectionClass(static::class))->getShortName());
+        return self::$aliasCache[static::class] ??= \lcfirst((new ReflectionClass(static::class))->getShortName());
     }
 
     /** @internal used by the dependency injection system */

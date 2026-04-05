@@ -6,3 +6,5 @@ parameters:
     paths:
         - src/
         - tests/
+    bootstrapFiles:
+        - vendor/bin/.phpunit/phpunit-11.5-0/vendor/autoload.php

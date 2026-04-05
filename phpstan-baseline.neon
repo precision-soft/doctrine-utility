@@ -49,6 +49,12 @@ parameters:
 			path: src/Join/JoinCollection.php
 
 		-
+			message: '#^Property PrecisionSoft\\Doctrine\\Utility\\Repository\\AbstractRepository\:\:\$aliasCache type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Repository/AbstractRepository.php
+
+		-
 			message: '#^Method PrecisionSoft\\Doctrine\\Utility\\Repository\\AbstractRepository\:\:attachCustomFilters\(\) has parameter \$filters with no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
@@ -169,27 +175,33 @@ parameters:
 			path: tests/Entity/ModifiedTraitTest.php
 
 		-
+			message: '#^Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage\:\:andReturn\(\)\.$#'
+			identifier: method.notFound
+			count: 4
+			path: tests/Function/DateFormatTest.php
+
+		-
 			message: '#^Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage\:\:once\(\)\.$#'
 			identifier: method.notFound
 			count: 2
 			path: tests/Function/DateFormatTest.php
 
 		-
-			message: '#^Parameter \#1 \$sqlWalker of method PrecisionSoft\\Doctrine\\Utility\\Function\\DateFormat\:\:getSql\(\) expects Doctrine\\ORM\\Query\\SqlWalker, Mockery\\MockInterface given\.$#'
+			message: '#^Parameter \#1 \$sqlWalker of method PrecisionSoft\\Doctrine\\Utility\\Function\\DateFormat\:\:getSql\(\) expects Doctrine\\ORM\\Query\\SqlWalker, Doctrine\\ORM\\Query\\SqlWalker\|Mockery\\MockInterface given\.$#'
 			identifier: argument.type
-			count: 1
+			count: 2
 			path: tests/Function/DateFormatTest.php
 
 		-
 			message: '#^Property PrecisionSoft\\Doctrine\\Utility\\Function\\DateFormat\:\:\$firstDateExpression \(Doctrine\\ORM\\Query\\AST\\Node\) does not accept Mockery\\MockInterface\.$#'
 			identifier: assign.propertyType
-			count: 1
+			count: 2
 			path: tests/Function/DateFormatTest.php
 
 		-
 			message: '#^Property PrecisionSoft\\Doctrine\\Utility\\Function\\DateFormat\:\:\$secondDateExpression \(Doctrine\\ORM\\Query\\AST\\Node\) does not accept Mockery\\MockInterface\.$#'
 			identifier: assign.propertyType
-			count: 1
+			count: 2
 			path: tests/Function/DateFormatTest.php
 
 		-
@@ -399,7 +411,7 @@ parameters:
 		-
 			message: '#^Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage\:\:once\(\)\.$#'
 			identifier: method.notFound
-			count: 3
+			count: 6
 			path: tests/Repository/AbstractRepositoryTest.php
 
 		-
@@ -409,8 +421,20 @@ parameters:
 			path: tests/Repository/AbstractRepositoryTest.php
 
 		-
+			message: '#^Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage\:\:with\(\)\.$#'
+			identifier: method.notFound
+			count: 4
+			path: tests/Repository/AbstractRepositoryTest.php
+
+		-
 			message: '#^Call to an undefined method Mockery\\MockInterface\:\:setManagerRegistry\(\)\.$#'
 			identifier: method.notFound
+			count: 3
+			path: tests/Repository/AbstractRepositoryTest.php
+
+		-
+			message: '#^Parameter \#1 \$joinType of class Doctrine\\ORM\\Query\\Expr\\Join constructor expects ''INNER''\|''LEFT'', ''INVALID_JOIN'' given\.$#'
+			identifier: argument.type
 			count: 1
 			path: tests/Repository/AbstractRepositoryTest.php
 

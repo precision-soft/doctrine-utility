@@ -9,11 +9,12 @@ declare(strict_types=1);
 namespace PrecisionSoft\Doctrine\Utility\Test\Function;
 
 use Doctrine\ORM\Query\AST\Node;
-use Doctrine\ORM\Query\SqlWalker;
 use Mockery;
 use Mockery\Adapter\Phpunit\MockeryPHPUnitIntegration;
 use PHPUnit\Framework\TestCase;
+use PrecisionSoft\Doctrine\Utility\Exception\Exception;
 use PrecisionSoft\Doctrine\Utility\Function\DateFormat;
+use PrecisionSoft\Doctrine\Utility\Test\Function\Trait\SqlWalkerTestTrait;
 use ReflectionClass;
 
 /**
@@ -22,6 +23,7 @@ use ReflectionClass;
 final class DateFormatTest extends TestCase
 {
     use MockeryPHPUnitIntegration;
+    use SqlWalkerTestTrait;
 
     public function testFunctionNameConstant(): void
     {
@@ -30,6 +32,8 @@ final class DateFormatTest extends TestCase
 
     public function testGetSqlReturnsFormattedString(): void
     {
+        $sqlWalker = $this->createMysqlSqlWalker();
+
         $firstNode = Mockery::mock(Node::class);
         $firstNode->shouldReceive('dispatch')
             ->once()
@@ -39,8 +43,6 @@ final class DateFormatTest extends TestCase
             ->once()
             ->andReturn("'%Y-%m'");
 
-        $sqlWalker = Mockery::mock(SqlWalker::class);
-
         $dateFormat = $this->createInstance();
         $dateFormat->firstDateExpression = $firstNode;
         $dateFormat->secondDateExpression = $secondNode;
@@ -48,6 +50,20 @@ final class DateFormatTest extends TestCase
         $sqlDeclaration = $dateFormat->getSql($sqlWalker);
 
         static::assertSame("DATE_FORMAT(t0_.created_at, '%Y-%m')", $sqlDeclaration);
+    }
+
+    public function testGetSqlThrowsOnNonMysqlPlatform(): void
+    {
+        $sqlWalker = $this->createNonMysqlSqlWalker();
+
+        $dateFormat = $this->createInstance();
+        $dateFormat->firstDateExpression = Mockery::mock(Node::class);
+        $dateFormat->secondDateExpression = Mockery::mock(Node::class);
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('method `DATE_FORMAT` is not supported');
+
+        $dateFormat->getSql($sqlWalker);
     }
 
     private function createInstance(): DateFormat
