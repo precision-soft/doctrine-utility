@@ -24,7 +24,7 @@ class MySqlWalker extends SqlWalker
     public const HINT_SELECT_FOR_UPDATE = 'MySqlWalker.SelectForUpdate';
     public const HINT_IGNORE_INDEX_ON_JOIN = 'MySqlWalker.IgnoreIndexOnJoin';
 
-    private const INDEX_NAME_PATTERN = '/^[a-zA-Z_][a-zA-Z0-9_]*(,\s*[a-zA-Z_][a-zA-Z0-9_]*)*$/';
+    private const IDENTIFIER_PATTERN = '/^[a-zA-Z_][a-zA-Z0-9_]*(,\s*[a-zA-Z_][a-zA-Z0-9_]*)*$/';
 
     public function walkFromClause(mixed $fromClause): string
     {
@@ -70,8 +70,8 @@ class MySqlWalker extends SqlWalker
                 throw new Exception('ignore index on join hint with invalid parameters');
             }
 
-            $this->validateIndexName($indexName);
-            $this->validateIndexName($tableName);
+            $this->validateIdentifier($indexName);
+            $this->validateIdentifier($tableName);
 
             if (1 === \preg_match('/`' . \preg_quote($tableName, '/') . '`/', $joinDeclarationSql)) {
                 $replacedJoinDeclarationSql = \preg_replace('/\bON\b/', 'IGNORE INDEX (' . $indexName . ') ON', $joinDeclarationSql, 1);
@@ -95,7 +95,7 @@ class MySqlWalker extends SqlWalker
             return $sqlFragment;
         }
 
-        $this->validateIndexName($indexName);
+        $this->validateIdentifier($indexName);
 
         $replacedSqlFragment = \preg_replace($regex, '\1 ' . $indexType . ' (' . $indexName . ')', $sqlFragment, 1);
 
@@ -106,11 +106,11 @@ class MySqlWalker extends SqlWalker
         return $replacedSqlFragment;
     }
 
-    private function validateIndexName(string $indexName): void
+    private function validateIdentifier(string $identifier): void
     {
-        if (1 !== \preg_match(self::INDEX_NAME_PATTERN, $indexName)) {
+        if (1 !== \preg_match(self::IDENTIFIER_PATTERN, $identifier)) {
             throw new Exception(
-                \sprintf('invalid index name `%s`', $indexName),
+                \sprintf('invalid identifier `%s`', $identifier),
             );
         }
     }

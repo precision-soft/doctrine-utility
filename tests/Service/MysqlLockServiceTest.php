@@ -57,7 +57,7 @@ final class MysqlLockServiceTest extends TestCase
             ->once()
             ->andReturn($queryResult);
 
-        static::assertSame(false, $this->mysqlLockService->isLocked('test_lock'));
+        static::assertSame(false, $this->mysqlLockService->hasLock('test_lock'));
     }
 
     public function testIsLockedReturnsTrueWhenLockIsNotFree(): void
@@ -73,7 +73,7 @@ final class MysqlLockServiceTest extends TestCase
             ->once()
             ->andReturn($queryResult);
 
-        static::assertSame(true, $this->mysqlLockService->isLocked('test_lock'));
+        static::assertSame(true, $this->mysqlLockService->hasLock('test_lock'));
     }
 
     public function testIsLockedThrowsExceptionOnFalseRow(): void
@@ -92,7 +92,7 @@ final class MysqlLockServiceTest extends TestCase
         $this->expectException(MysqlLockException::class);
         $this->expectExceptionMessage('failed to check lock status');
 
-        $this->mysqlLockService->isLocked('test_lock');
+        $this->mysqlLockService->hasLock('test_lock');
     }
 
     public function testIsLockedThrowsExceptionOnMissingKey(): void
@@ -111,7 +111,7 @@ final class MysqlLockServiceTest extends TestCase
         $this->expectException(MysqlLockException::class);
         $this->expectExceptionMessage('failed to check lock status');
 
-        $this->mysqlLockService->isLocked('test_lock');
+        $this->mysqlLockService->hasLock('test_lock');
     }
 
     public function testIsLockedWithEntityManagerName(): void
@@ -131,7 +131,7 @@ final class MysqlLockServiceTest extends TestCase
             ->once()
             ->andReturn($queryResult);
 
-        static::assertSame(false, $this->mysqlLockService->isLocked('test_lock', 'custom'));
+        static::assertSame(false, $this->mysqlLockService->hasLock('test_lock', 'custom'));
     }
 
     public function testAcquireSuccessfully(): void
@@ -522,7 +522,7 @@ final class MysqlLockServiceTest extends TestCase
             ->once()
             ->andReturn($queryResult);
 
-        $this->mysqlLockService->isLocked($longName);
+        $this->mysqlLockService->hasLock($longName);
     }
 
     public function testPrepareLockNameKeepsShortNames(): void
@@ -542,7 +542,7 @@ final class MysqlLockServiceTest extends TestCase
             ->once()
             ->andReturn($queryResult);
 
-        $this->mysqlLockService->isLocked($shortName);
+        $this->mysqlLockService->hasLock($shortName);
     }
 
     public function testPrepareLockNameExactly64CharsNotTruncated(): void
@@ -562,6 +562,6 @@ final class MysqlLockServiceTest extends TestCase
             ->once()
             ->andReturn($queryResult);
 
-        $this->mysqlLockService->isLocked($maxLengthName);
+        $this->mysqlLockService->hasLock($maxLengthName);
     }
 }

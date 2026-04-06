@@ -87,5 +87,4 @@ final class JsonContainsPathTest extends TestCase
 
         return $reflectionClass->newInstanceWithoutConstructor();
     }
-
 }

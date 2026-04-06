@@ -28,7 +28,7 @@ class MysqlLockService
         $this->locks = [];
     }
 
-    public function isLocked(string $lockName, ?string $entityManagerName = null): bool
+    public function hasLock(string $lockName, ?string $entityManagerName = null): bool
     {
         try {
             $entityManager = $this->managerRegistry->getManager($entityManagerName);
@@ -104,10 +104,6 @@ class MysqlLockService
                     break;
                 case 0:
                     throw new MysqlLockException('another operation with the same id is already in progress');
-                default:
-                    throw new MysqlLockException(
-                        'an error occurred (such as running out of memory or the thread was killed)',
-                    );
             }
         } catch (Throwable $throwable) {
             if (true === $throwable instanceof MysqlLockException) {
@@ -165,10 +161,10 @@ class MysqlLockService
                     break;
                 case 0:
                     throw new MysqlLockException('lock was not established by this thread');
-                default:
-                    throw new MysqlLockException('the named lock did not exist');
             }
         } catch (Throwable $throwable) {
+            unset($this->locks[$lockKey]);
+
             if (true === $throwException) {
                 if (true === $throwable instanceof MysqlLockException) {
                     throw $throwable;
@@ -208,7 +204,9 @@ class MysqlLockService
         bool $throwException = false,
     ): self {
         if (null === $lockNames) {
-            foreach ($this->locks as $lockData) {
+            $locksToRelease = $this->locks;
+
+            foreach ($locksToRelease as $lockData) {
                 try {
                     $this->release($lockData['lockName'], $lockData['entityManagerName'], throwException: true);
                 } catch (Throwable $throwable) {

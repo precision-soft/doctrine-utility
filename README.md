@@ -162,7 +162,7 @@ public function __construct(private MysqlLockService $lockService) {}
 
 $lockService->acquire('my-lock', timeout: 5);
 
-$isLocked = $lockService->isLocked('my-lock');
+$hasLock = $lockService->hasLock('my-lock');
 
 $lockService->release('my-lock');
 

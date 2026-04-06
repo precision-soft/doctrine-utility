@@ -84,5 +84,4 @@ final class JsonExtractTest extends TestCase
 
         return $reflectionClass->newInstanceWithoutConstructor();
     }
-
 }

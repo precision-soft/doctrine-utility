@@ -85,5 +85,4 @@ final class JsonContainsTest extends TestCase
 
         return $reflectionClass->newInstanceWithoutConstructor();
     }
-
 }

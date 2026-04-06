@@ -38,6 +38,7 @@ class JoinCollection
         return $this;
     }
 
+    /** @return string[] */
     public function getAliases(): array
     {
         return \array_keys($this->joins);

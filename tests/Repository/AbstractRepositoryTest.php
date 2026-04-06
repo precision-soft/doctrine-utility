@@ -49,7 +49,6 @@ final class AbstractRepositoryTest extends AbstractTestCase
         ];
 
         $reflectionMethod = new ReflectionMethod(AbstractRepository::class, 'createQueryBuilderFromFilters');
-        $reflectionMethod->setAccessible(true);
 
         $abstractRepositoryMock = $this->get(AbstractRepository::class);
         $abstractRepositoryMock->shouldAllowMockingProtectedMethods();
@@ -64,7 +63,6 @@ final class AbstractRepositoryTest extends AbstractTestCase
     public function testAttachJoinsThrowsExceptionOnInvalidJoinType(): void
     {
         $reflectionMethod = new ReflectionMethod(AbstractRepository::class, 'attachJoins');
-        $reflectionMethod->setAccessible(true);
 
         $abstractRepositoryMock = $this->get(AbstractRepository::class);
 
@@ -83,7 +81,6 @@ final class AbstractRepositoryTest extends AbstractTestCase
     public function testGetDoctrineRepositoryThrowsExceptionOnWrongClass(): void
     {
         $reflectionMethod = new ReflectionMethod(AbstractRepository::class, 'getDoctrineRepository');
-        $reflectionMethod->setAccessible(true);
 
         $abstractRepositoryMock = $this->get(AbstractRepository::class);
         $abstractRepositoryMock->shouldAllowMockingProtectedMethods();
@@ -110,7 +107,6 @@ final class AbstractRepositoryTest extends AbstractTestCase
     public function testExecuteRunsQueryWithParameters(): void
     {
         $reflectionMethod = new ReflectionMethod(AbstractRepository::class, 'execute');
-        $reflectionMethod->setAccessible(true);
 
         $abstractRepositoryMock = $this->get(AbstractRepository::class);
         $abstractRepositoryMock->shouldAllowMockingProtectedMethods();

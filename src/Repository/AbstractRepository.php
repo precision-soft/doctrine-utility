@@ -117,6 +117,11 @@ abstract class AbstractRepository
         return $queryBuilder;
     }
 
+    /**
+     * @param array<string, mixed> $filters
+     *
+     * @return array{0: array<string, mixed>, 1: array<string, mixed>}
+     */
     final protected function sortFilters(
         array $filters,
         ?string $managerName = null,
@@ -142,28 +147,23 @@ abstract class AbstractRepository
         JoinCollection $joinCollection,
     ): void {
         foreach ($joinCollection->getJoins() as $join) {
-            switch ($join->getJoinType()) {
-                case static::JOIN_INNER:
-                    $queryBuilder->innerJoin(
-                        $join->getJoin(),
-                        $join->getAlias(),
-                        $join->getConditionType(),
-                        $join->getCondition(),
-                        $join->getIndexBy(),
-                    );
-                    break;
-                case static::JOIN_LEFT:
-                    $queryBuilder->leftJoin(
-                        $join->getJoin(),
-                        $join->getAlias(),
-                        $join->getConditionType(),
-                        $join->getCondition(),
-                        $join->getIndexBy(),
-                    );
-                    break;
-                default:
-                    throw new Exception(\sprintf('invalid join type `%s`', $join->getJoinType()));
-            }
+            match ($join->getJoinType()) {
+                static::JOIN_INNER => $queryBuilder->innerJoin(
+                    $join->getJoin(),
+                    $join->getAlias(),
+                    $join->getConditionType(),
+                    $join->getCondition(),
+                    $join->getIndexBy(),
+                ),
+                static::JOIN_LEFT => $queryBuilder->leftJoin(
+                    $join->getJoin(),
+                    $join->getAlias(),
+                    $join->getConditionType(),
+                    $join->getCondition(),
+                    $join->getIndexBy(),
+                ),
+                default => throw new Exception(\sprintf('invalid join type `%s`', $join->getJoinType())),
+            };
         }
     }
 
@@ -206,6 +206,11 @@ abstract class AbstractRepository
         array $filters,
     ): void {
         foreach ($filters as $filterName => $filterValue) {
+            if (null === $filterValue) {
+                $queryBuilder->andWhere(static::getAlias() . ".{$filterName} IS NULL");
+                continue;
+            }
+
             $filterCondition = true === \is_array($filterValue) ? "IN (:{$filterName})" : "= :{$filterName}";
 
             $queryBuilder->andWhere(static::getAlias() . ".{$filterName} {$filterCondition}")

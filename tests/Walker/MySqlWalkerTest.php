@@ -55,7 +55,7 @@ final class MySqlWalkerTest extends TestCase
     public function testValidateIndexNameThrowsOnInvalidCharacters(): void
     {
         $this->expectException(Exception::class);
-        $this->expectExceptionMessage('invalid index name');
+        $this->expectExceptionMessage('invalid identifier');
 
         $this->callValidateIndexName('DROP TABLE users; --');
     }
@@ -63,7 +63,7 @@ final class MySqlWalkerTest extends TestCase
     public function testValidateIndexNameThrowsOnEmptyString(): void
     {
         $this->expectException(Exception::class);
-        $this->expectExceptionMessage('invalid index name');
+        $this->expectExceptionMessage('invalid identifier');
 
         $this->callValidateIndexName('');
     }
@@ -71,7 +71,7 @@ final class MySqlWalkerTest extends TestCase
     public function testValidateIndexNameThrowsOnStartsWithDigit(): void
     {
         $this->expectException(Exception::class);
-        $this->expectExceptionMessage('invalid index name');
+        $this->expectExceptionMessage('invalid identifier');
 
         $this->callValidateIndexName('123index');
     }
@@ -79,7 +79,7 @@ final class MySqlWalkerTest extends TestCase
     public function testValidateIndexNameThrowsOnSpecialCharacters(): void
     {
         $this->expectException(Exception::class);
-        $this->expectExceptionMessage('invalid index name');
+        $this->expectExceptionMessage('invalid identifier');
 
         $this->callValidateIndexName('index-name');
     }
@@ -87,7 +87,7 @@ final class MySqlWalkerTest extends TestCase
     public function testValidateIndexNameThrowsOnSpacesInName(): void
     {
         $this->expectException(Exception::class);
-        $this->expectExceptionMessage('invalid index name');
+        $this->expectExceptionMessage('invalid identifier');
 
         $this->callValidateIndexName('index name');
     }
@@ -100,8 +100,7 @@ final class MySqlWalkerTest extends TestCase
 
     private function callValidateIndexName(string $indexName): void
     {
-        $reflectionMethod = new ReflectionMethod(MySqlWalker::class, 'validateIndexName');
-        $reflectionMethod->setAccessible(true);
+        $reflectionMethod = new ReflectionMethod(MySqlWalker::class, 'validateIdentifier');
 
         $reflectionClass = new ReflectionClass(MySqlWalker::class);
         $mySqlWalker = $reflectionClass->newInstanceWithoutConstructor();

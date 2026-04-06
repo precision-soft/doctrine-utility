@@ -67,5 +67,4 @@ final class JsonUnquoteTest extends TestCase
 
         return $reflectionClass->newInstanceWithoutConstructor();
     }
-
 }

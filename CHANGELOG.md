@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.2] - 2026-04-05
+
+### Fixed
+
+- `MysqlLockService::acquire()` — remove unreachable `default` branch in switch (MySQL `GET_LOCK()` only returns `0`, `1`, or `NULL`; `NULL` is caught by `isset()` guard)
+- `MysqlLockService::release()` — remove unreachable `default` branch in switch (same reason)
+- `MysqlLockService::releaseLocks()` — copy `$this->locks` to temporary array before iterating to prevent modification during foreach
+- `MysqlLockService::release()` — clean up stale lock entry from `$this->locks` when release fails and exception is swallowed (`$throwException = false`)
+
+### Changed
+
+- `AbstractRepository::attachJoins()` — replace `switch` with `match` expression
+- `AbstractRepository::attachGenericFilters()` — handle `null` filter values with `IS NULL` clause
+- `AbstractJsonSearch` — update `$lexer->lookahead['value']` to `$lexer->lookahead->value` (Doctrine ORM 3 property access)
+- `MySqlWalker` — rename `validateIndexName()` to `validateIdentifier()` and `INDEX_NAME_PATTERN` to `IDENTIFIER_PATTERN`
+- `MysqlLockService` — rename `isLocked()` to `hasLock()` (boolean query method naming convention)
+- `.dev/docker/entrypoint.sh` — skip `composer install` when `composer.lock` hash matches cached vendor
+- Add `@return string[]` PHPDoc to `JoinCollection::getAliases()`
+- Add `@param` and `@return` array shape annotations to `AbstractRepository::sortFilters()`
+- `SqlWalkerTestTrait` — import `MockInterface` via `use` instead of inline `Mockery\MockInterface`
+- Remove trailing blank lines before closing brace in JSON function test files
+- Remove `setAccessible(true)` calls from test files (unnecessary since PHP 8.1)
+- Update `phpstan-baseline.neon`
+
 ## [4.0.1] - 2026-04-04
 
 ### Fixed

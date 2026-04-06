@@ -107,5 +107,4 @@ final class JsonSearchTest extends TestCase
 
         return $reflectionClass->newInstanceWithoutConstructor();
     }
-
 }

@@ -23,7 +23,7 @@ abstract class AbstractJsonSearch extends FunctionNode
     protected function parsePathMode(Parser $parser): void
     {
         $lexer = $parser->getLexer();
-        $lookaheadValue = $lexer->lookahead['value'];
+        $lookaheadValue = $lexer->lookahead->value;
 
         if (0 !== \strcasecmp(self::MODE_ONE, $lookaheadValue) && 0 !== \strcasecmp(self::MODE_ALL, $lookaheadValue)) {
             throw new Exception(

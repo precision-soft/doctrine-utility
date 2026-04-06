@@ -13,10 +13,11 @@ use Doctrine\DBAL\Platforms\MySQLPlatform;
 use Doctrine\DBAL\Platforms\PostgreSQLPlatform;
 use Doctrine\ORM\Query\SqlWalker;
 use Mockery;
+use Mockery\MockInterface;
 
 trait SqlWalkerTestTrait
 {
-    private function createMysqlSqlWalker(): SqlWalker|Mockery\MockInterface
+    private function createMysqlSqlWalker(): SqlWalker|MockInterface
     {
         $connection = Mockery::mock(Connection::class);
         $connection->shouldReceive('getDatabasePlatform')
@@ -29,7 +30,7 @@ trait SqlWalkerTestTrait
         return $sqlWalker;
     }
 
-    private function createNonMysqlSqlWalker(): SqlWalker|Mockery\MockInterface
+    private function createNonMysqlSqlWalker(): SqlWalker|MockInterface
     {
         $connection = Mockery::mock(Connection::class);
         $connection->shouldReceive('getDatabasePlatform')

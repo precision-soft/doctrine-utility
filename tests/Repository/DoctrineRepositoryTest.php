@@ -100,7 +100,6 @@ final class DoctrineRepositoryTest extends TestCase
         $doctrineRepository = $reflectionClass->newInstanceWithoutConstructor();
 
         $classMetadataProperty = $reflectionClass->getParentClass()->getProperty('class');
-        $classMetadataProperty->setAccessible(true);
         $classMetadataProperty->setValue($doctrineRepository, $classMetadata);
 
         return $doctrineRepository;
