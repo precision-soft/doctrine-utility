@@ -12,7 +12,9 @@ use DateTime;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
-/** @info consuming entity class must have the #[ORM\HasLifecycleCallbacks] attribute for the PreUpdate callback to work */
+/**
+ * Consuming entity class must have the #[ORM\HasLifecycleCallbacks] attribute for the PreUpdate callback to work.
+ */
 trait ModifiedTrait
 {
     #[ORM\Column(type: Types::DATETIME_MUTABLE, options: ['default' => 'CURRENT_TIMESTAMP'])]

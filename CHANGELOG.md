@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.3] - 2026-04-07
+
+### Fixed
+
+- `MysqlLockService::acquire()` — `isset()` → `array_key_exists()` for `lockAcquired` key presence check; handle `null` return from `GET_LOCK()` explicitly before casting to `int`; update `preparedLockName` in `$this->locks` when re-acquiring an existing lock key
+- `MysqlLockService::release()` — add `default` case that throws `MysqlLockException` for unexpected `RELEASE_LOCK()` responses
+- `MysqlLockService` — extract `getEntityManager()` private method to eliminate triplicated EntityManager validation; `prepareLockName()` now accepts `EntityManager` directly instead of re-fetching by name
+- `MysqlLockService` — replace magic MySQL return codes with named constants (`GET_LOCK_SUCCESS`, `GET_LOCK_TIMEOUT`, `IS_FREE_LOCK_FREE`, `RELEASE_LOCK_SUCCESS`, `RELEASE_LOCK_NOT_OWNED`)
+- `MysqlLockService::acquire()` / `release()` — `switch ((int)$value)` → `switch (true)` with Yoda case comparisons
+- `AbstractRepository::attachGenericFilters()` — skip empty array filter values instead of generating invalid `IN ()` SQL; detect array element type for `ArrayParameterType::INTEGER` vs `ArrayParameterType::STRING`
+- `MySqlWalker` — `self::HINT_*` → `static::HINT_*` for late static binding on index hint constants
+- `ModifiedTrait` — replace multi-line `Note:` comment with inline `@info` docblock
+
 ## [4.0.2] - 2026-04-05
 
 ### Fixed
@@ -79,6 +92,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `squizlabs/php_codesniffer` dev dependency
 - `phpcs.xml` configuration file
+
+[4.0.3]: https://github.com/precision-soft/doctrine-utility/compare/v4.0.2...v4.0.3
+
+[4.0.2]: https://github.com/precision-soft/doctrine-utility/compare/v4.0.1...v4.0.2
 
 [4.0.1]: https://github.com/precision-soft/doctrine-utility/compare/v4.0.0...v4.0.1
 

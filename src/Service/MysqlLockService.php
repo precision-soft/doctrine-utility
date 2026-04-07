@@ -15,6 +15,12 @@ use Throwable;
 
 class MysqlLockService
 {
+    private const IS_FREE_LOCK_FREE = 1;
+    private const GET_LOCK_SUCCESS = 1;
+    private const GET_LOCK_TIMEOUT = 0;
+    private const RELEASE_LOCK_SUCCESS = 1;
+    private const RELEASE_LOCK_NOT_OWNED = 0;
+
     private ManagerRegistry $managerRegistry;
 
     /**
@@ -43,7 +49,7 @@ class MysqlLockService
                 throw new MysqlLockException('failed to check lock status');
             }
 
-            return 1 !== (int)$lockStatusRow['lockIsFree'];
+            return self::IS_FREE_LOCK_FREE !== (int)$lockStatusRow['lockIsFree'];
         } catch (Throwable $throwable) {
             if (true === $throwable instanceof MysqlLockException) {
                 throw $throwable;
@@ -85,7 +91,7 @@ class MysqlLockService
             }
 
             switch (true) {
-                case 1 === $lockAcquired:
+                case self::GET_LOCK_SUCCESS === $lockAcquired:
                     if (true === isset($this->locks[$lockKey])) {
                         $this->locks[$lockKey]['preparedLockName'] = $preparedLockName;
                     } else {
@@ -100,7 +106,7 @@ class MysqlLockService
                     ++$this->locks[$lockKey]['count'];
 
                     break;
-                case 0 === $lockAcquired:
+                case self::GET_LOCK_TIMEOUT === $lockAcquired:
                     throw new MysqlLockException('another operation with the same id is already in progress');
                 default:
                     throw new MysqlLockException('failed to acquire lock: unexpected response');
@@ -150,11 +156,11 @@ class MysqlLockService
             }
 
             switch ((int)$releaseRow['lockReleased']) {
-                case 1:
+                case self::RELEASE_LOCK_SUCCESS:
                     unset($this->locks[$lockKey]);
 
                     break;
-                case 0:
+                case self::RELEASE_LOCK_NOT_OWNED:
                     throw new MysqlLockException('lock was not established by this thread');
                 default:
                     throw new MysqlLockException('failed to release lock: unexpected response');
