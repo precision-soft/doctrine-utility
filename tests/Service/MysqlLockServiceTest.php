@@ -244,7 +244,7 @@ final class MysqlLockServiceTest extends TestCase
             ->andReturn($queryResult);
 
         $this->expectException(MysqlLockException::class);
-        $this->expectExceptionMessage('failed to acquire lock: invalid response');
+        $this->expectExceptionMessage('failed to acquire lock: unexpected response');
 
         $this->mysqlLockService->acquire('test_lock');
     }

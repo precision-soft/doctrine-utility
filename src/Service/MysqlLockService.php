@@ -31,16 +31,11 @@ class MysqlLockService
     public function hasLock(string $lockName, ?string $entityManagerName = null): bool
     {
         try {
-            $entityManager = $this->managerRegistry->getManager($entityManagerName);
-
-            if (false === $entityManager instanceof EntityManager) {
-                throw new MysqlLockException(\sprintf('Manager "%s" is not an instance of EntityManager.', $entityManagerName));
-            }
-
+            $entityManager = $this->getEntityManager($entityManagerName);
             $connection = $entityManager->getConnection();
             $lockStatusQuery = \sprintf(
                 'SELECT IS_FREE_LOCK(%s) AS lockIsFree',
-                $this->prepareLockName($lockName, $entityManagerName),
+                $this->prepareLockName($lockName, $entityManager),
             );
             $lockStatusRow = $connection->executeQuery($lockStatusQuery)->fetchAssociative();
 
@@ -73,24 +68,27 @@ class MysqlLockService
         }
 
         try {
-            $preparedLockName = $this->prepareLockName($lockName, $entityManagerName);
-            $entityManager = $this->managerRegistry->getManager($entityManagerName);
-
-            if (false === $entityManager instanceof EntityManager) {
-                throw new MysqlLockException(\sprintf('Manager "%s" is not an instance of EntityManager.', $entityManagerName));
-            }
-
+            $entityManager = $this->getEntityManager($entityManagerName);
+            $preparedLockName = $this->prepareLockName($lockName, $entityManager);
             $connection = $entityManager->getConnection();
             $acquireQuery = \sprintf('SELECT GET_LOCK(%s, %s) AS lockAcquired', $preparedLockName, $timeout);
             $acquireRow = $connection->executeQuery($acquireQuery)->fetchAssociative();
 
-            if (false === $acquireRow || false === isset($acquireRow['lockAcquired'])) {
+            if (false === $acquireRow || false === \array_key_exists('lockAcquired', $acquireRow)) {
                 throw new MysqlLockException('failed to acquire lock: invalid response');
             }
 
-            switch ((int)$acquireRow['lockAcquired']) {
-                case 1:
-                    if (false === isset($this->locks[$lockKey])) {
+            $lockAcquired = $acquireRow['lockAcquired'];
+
+            if (null !== $lockAcquired) {
+                $lockAcquired = (int)$lockAcquired;
+            }
+
+            switch (true) {
+                case 1 === $lockAcquired:
+                    if (true === isset($this->locks[$lockKey])) {
+                        $this->locks[$lockKey]['preparedLockName'] = $preparedLockName;
+                    } else {
                         $this->locks[$lockKey] = [
                             'preparedLockName' => $preparedLockName,
                             'count' => 0,
@@ -102,8 +100,10 @@ class MysqlLockService
                     ++$this->locks[$lockKey]['count'];
 
                     break;
-                case 0:
+                case 0 === $lockAcquired:
                     throw new MysqlLockException('another operation with the same id is already in progress');
+                default:
+                    throw new MysqlLockException('failed to acquire lock: unexpected response');
             }
         } catch (Throwable $throwable) {
             if (true === $throwable instanceof MysqlLockException) {
@@ -140,12 +140,7 @@ class MysqlLockService
                 return $this;
             }
 
-            $entityManager = $this->managerRegistry->getManager($entityManagerName);
-
-            if (false === $entityManager instanceof EntityManager) {
-                throw new MysqlLockException(\sprintf('Manager "%s" is not an instance of EntityManager.', $entityManagerName));
-            }
-
+            $entityManager = $this->getEntityManager($entityManagerName);
             $connection = $entityManager->getConnection();
             $releaseQuery = \sprintf('SELECT RELEASE_LOCK(%s) AS lockReleased', $this->locks[$lockKey]['preparedLockName']);
             $releaseRow = $connection->executeQuery($releaseQuery)->fetchAssociative();
@@ -161,11 +156,12 @@ class MysqlLockService
                     break;
                 case 0:
                     throw new MysqlLockException('lock was not established by this thread');
+                default:
+                    throw new MysqlLockException('failed to release lock: unexpected response');
             }
         } catch (Throwable $throwable) {
-            unset($this->locks[$lockKey]);
-
             if (true === $throwException) {
+                unset($this->locks[$lockKey]);
                 if (true === $throwable instanceof MysqlLockException) {
                     throw $throwable;
                 }
@@ -235,18 +231,23 @@ class MysqlLockService
         return $lockName . '@@' . ($entityManagerName ?? 'default');
     }
 
-    private function prepareLockName(string $lockName, ?string $entityManagerName = null): string
+    private function prepareLockName(string $lockName, EntityManager $entityManager): string
     {
         if (64 < \strlen($lockName)) {
             $lockName = \substr($lockName, 0, 10) . '>>' . \md5($lockName) . '<<' . \substr($lockName, -10);
         }
 
+        return $entityManager->getConnection()->quote($lockName);
+    }
+
+    private function getEntityManager(?string $entityManagerName): EntityManager
+    {
         $entityManager = $this->managerRegistry->getManager($entityManagerName);
 
         if (false === $entityManager instanceof EntityManager) {
             throw new MysqlLockException(\sprintf('Manager "%s" is not an instance of EntityManager.', $entityManagerName));
         }
 
-        return $entityManager->getConnection()->quote($lockName);
+        return $entityManager;
     }
 }

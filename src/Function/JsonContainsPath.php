@@ -20,6 +20,7 @@ class JsonContainsPath extends AbstractJsonSearch
     public const FUNCTION_NAME = 'JSON_CONTAINS_PATH';
 
     public Node $jsonDocExpr;
+    /** @var Node[] */
     public array $jsonPaths = [];
 
     public function getSql(SqlWalker $sqlWalker): string

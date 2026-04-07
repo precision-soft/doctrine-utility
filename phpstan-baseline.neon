@@ -1,12 +1,6 @@
 parameters:
 	ignoreErrors:
 		-
-			message: '#^Cannot access property \$value on Doctrine\\Common\\Lexer\\Token\<Doctrine\\ORM\\Query\\TokenType, string\>\|null\.$#'
-			identifier: property.nonObject
-			count: 1
-			path: src/Function/AbstractJsonSearch.php
-
-		-
 			message: '#^Property PrecisionSoft\\Doctrine\\Utility\\Function\\DateFormat\:\:\$firstDateExpression \(Doctrine\\ORM\\Query\\AST\\Node\) does not accept Doctrine\\ORM\\Query\\AST\\Node\|string\.$#'
 			identifier: assign.propertyType
 			count: 1
@@ -17,30 +11,6 @@ parameters:
 			identifier: assign.propertyType
 			count: 1
 			path: src/Function/DateFormat.php
-
-		-
-			message: '#^Property PrecisionSoft\\Doctrine\\Utility\\Function\\JsonContainsPath\:\:\$jsonPaths type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Function/JsonContainsPath.php
-
-		-
-			message: '#^Property PrecisionSoft\\Doctrine\\Utility\\Function\\JsonExtract\:\:\$jsonPaths type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Function/JsonExtract.php
-
-		-
-			message: '#^Property PrecisionSoft\\Doctrine\\Utility\\Function\\JsonSearch\:\:\$jsonPaths type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Function/JsonSearch.php
-
-		-
-			message: '#^Property PrecisionSoft\\Doctrine\\Utility\\Join\\JoinCollection\:\:\$joins type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Join/JoinCollection.php
 
 		-
 			message: '#^Method PrecisionSoft\\Doctrine\\Utility\\Repository\\AbstractRepository\:\:attachCustomFilters\(\) has parameter \$filters with no value type specified in iterable type array\.$#'
@@ -223,6 +193,12 @@ parameters:
 			path: tests/Function/JsonContainsPathTest.php
 
 		-
+			message: '#^Property PrecisionSoft\\Doctrine\\Utility\\Function\\JsonContainsPath\:\:\$jsonPaths \(array\<Doctrine\\ORM\\Query\\AST\\Node\>\) does not accept array\<int, Mockery\\MockInterface\>\.$#'
+			identifier: assign.propertyType
+			count: 3
+			path: tests/Function/JsonContainsPathTest.php
+
+		-
 			message: '#^Call to an undefined method Doctrine\\ORM\\Query\\SqlWalker\|Mockery\\MockInterface\:\:shouldReceive\(\)\.$#'
 			identifier: method.notFound
 			count: 3
@@ -307,6 +283,12 @@ parameters:
 			path: tests/Function/JsonExtractTest.php
 
 		-
+			message: '#^Property PrecisionSoft\\Doctrine\\Utility\\Function\\JsonExtract\:\:\$jsonPaths \(array\<Doctrine\\ORM\\Query\\AST\\Node\>\) does not accept array\<int, Mockery\\MockInterface\>\.$#'
+			identifier: assign.propertyType
+			count: 3
+			path: tests/Function/JsonExtractTest.php
+
+		-
 			message: '#^Call to an undefined method Doctrine\\ORM\\Query\\SqlWalker\|Mockery\\MockInterface\:\:shouldReceive\(\)\.$#'
 			identifier: method.notFound
 			count: 4
@@ -346,6 +328,12 @@ parameters:
 			message: '#^Property PrecisionSoft\\Doctrine\\Utility\\Function\\JsonSearch\:\:\$jsonEscapeExpr \(Doctrine\\ORM\\Query\\AST\\Node\|null\) does not accept Mockery\\MockInterface\.$#'
 			identifier: assign.propertyType
 			count: 2
+			path: tests/Function/JsonSearchTest.php
+
+		-
+			message: '#^Property PrecisionSoft\\Doctrine\\Utility\\Function\\JsonSearch\:\:\$jsonPaths \(array\<Doctrine\\ORM\\Query\\AST\\Node\>\) does not accept array\<int, Mockery\\MockInterface\>\.$#'
+			identifier: assign.propertyType
+			count: 1
 			path: tests/Function/JsonSearchTest.php
 
 		-
@@ -399,7 +387,7 @@ parameters:
 		-
 			message: '#^Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage\:\:times\(\)\.$#'
 			identifier: method.notFound
-			count: 3
+			count: 4
 			path: tests/Repository/AbstractRepositoryTest.php
 
 		-

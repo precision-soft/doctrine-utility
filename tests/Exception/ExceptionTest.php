@@ -12,7 +12,6 @@ use Exception as BaseException;
 use PHPUnit\Framework\TestCase;
 use PrecisionSoft\Doctrine\Utility\Exception\Exception;
 use PrecisionSoft\Doctrine\Utility\Exception\MysqlLockException;
-use RuntimeException;
 
 /**
  * @internal
@@ -36,7 +35,7 @@ final class ExceptionTest extends TestCase
 
     public function testExceptionWithPreviousException(): void
     {
-        $previous = new RuntimeException('previous');
+        $previous = new Exception('previous');
         $exception = new Exception('test', 0, $previous);
 
         static::assertSame($previous, $exception->getPrevious());

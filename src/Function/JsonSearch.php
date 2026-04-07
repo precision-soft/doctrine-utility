@@ -22,6 +22,7 @@ class JsonSearch extends AbstractJsonSearch
     public Node $jsonDocExpr;
     public Node $jsonSearchExpr;
     public ?Node $jsonEscapeExpr = null;
+    /** @var Node[] */
     public array $jsonPaths = [];
 
     public function getSql(SqlWalker $sqlWalker): string

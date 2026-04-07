@@ -8,6 +8,7 @@ declare(strict_types=1);
 
 namespace PrecisionSoft\Doctrine\Utility\Repository;
 
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Result;
 use Doctrine\ORM\Query\Expr\Join;
@@ -211,10 +212,21 @@ abstract class AbstractRepository
                 continue;
             }
 
-            $filterCondition = true === \is_array($filterValue) ? "IN (:{$filterName})" : "= :{$filterName}";
+            if (true === \is_array($filterValue)) {
+                if ([] === $filterValue) {
+                    continue;
+                }
 
-            $queryBuilder->andWhere(static::getAlias() . ".{$filterName} {$filterCondition}")
-                ->setParameter($filterName, $filterValue);
+                $arrayParameterType = true === \is_int(\reset($filterValue))
+                    ? ArrayParameterType::INTEGER
+                    : ArrayParameterType::STRING;
+
+                $queryBuilder->andWhere(static::getAlias() . ".{$filterName} IN (:{$filterName})")
+                    ->setParameter($filterName, $filterValue, $arrayParameterType);
+            } else {
+                $queryBuilder->andWhere(static::getAlias() . ".{$filterName} = :{$filterName}")
+                    ->setParameter($filterName, $filterValue);
+            }
         }
     }
 }

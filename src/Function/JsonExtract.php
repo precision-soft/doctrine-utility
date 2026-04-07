@@ -21,6 +21,7 @@ class JsonExtract extends FunctionNode
     public const FUNCTION_NAME = 'JSON_EXTRACT';
 
     public Node $jsonDocExpr;
+    /** @var Node[] */
     public array $jsonPaths = [];
 
     public function getSql(SqlWalker $sqlWalker): string

@@ -13,6 +13,7 @@ use PrecisionSoft\Doctrine\Utility\Exception\Exception;
 
 class JoinCollection
 {
+    /** @var Join[] */
     private array $joins = [];
 
     /**

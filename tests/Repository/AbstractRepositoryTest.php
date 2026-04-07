@@ -156,7 +156,10 @@ final class AbstractRepositoryTest extends AbstractTestCase
         $classMetadataMock->shouldReceive('hasField')
             ->once()
             ->andReturn(true);
-        $classMetadataMock->shouldReceive('hasField', 'hasAssociation')
+        $classMetadataMock->shouldReceive('hasField')
+            ->times(2)
+            ->andReturn(false);
+        $classMetadataMock->shouldReceive('hasAssociation')
             ->times(2)
             ->andReturn(false);
 

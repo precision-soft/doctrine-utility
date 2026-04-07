@@ -32,9 +32,9 @@ class MySqlWalker extends SqlWalker
 
         $fromClauseSql = parent::walkFromClause($fromClause);
 
-        $fromClauseSql = $this->applyIndexHint($fromClauseSql, $regex, self::HINT_USE_INDEX, 'USE INDEX');
-        $fromClauseSql = $this->applyIndexHint($fromClauseSql, $regex, self::HINT_IGNORE_INDEX, 'IGNORE INDEX');
-        $fromClauseSql = $this->applyIndexHint($fromClauseSql, $regex, self::HINT_FORCE_INDEX, 'FORCE INDEX');
+        $fromClauseSql = $this->applyIndexHint($fromClauseSql, $regex, static::HINT_USE_INDEX, 'USE INDEX');
+        $fromClauseSql = $this->applyIndexHint($fromClauseSql, $regex, static::HINT_IGNORE_INDEX, 'IGNORE INDEX');
+        $fromClauseSql = $this->applyIndexHint($fromClauseSql, $regex, static::HINT_FORCE_INDEX, 'FORCE INDEX');
 
         return $fromClauseSql;
     }
