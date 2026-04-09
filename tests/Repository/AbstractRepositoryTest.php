@@ -22,8 +22,10 @@ use PrecisionSoft\Doctrine\Utility\Exception\Exception;
 use PrecisionSoft\Doctrine\Utility\Join\JoinCollection;
 use PrecisionSoft\Doctrine\Utility\Repository\AbstractRepository;
 use PrecisionSoft\Doctrine\Utility\Repository\DoctrineRepository;
+use PrecisionSoft\Doctrine\Utility\Repository\EmptyArrayFilterBehavior;
 use PrecisionSoft\Symfony\Phpunit\MockDto;
 use PrecisionSoft\Symfony\Phpunit\TestCase\AbstractTestCase;
+use Psr\Log\LoggerInterface;
 use ReflectionMethod;
 
 /**
@@ -102,6 +104,72 @@ final class AbstractRepositoryTest extends AbstractTestCase
         $this->expectExceptionMessage('you must use');
 
         $reflectionMethod->invoke($abstractRepositoryMock);
+    }
+
+    public function testAttachGenericFiltersEmptyArrayMatchesNoneByDefault(): void
+    {
+        $reflectionMethod = new ReflectionMethod(AbstractRepository::class, 'attachGenericFilters');
+
+        $abstractRepositoryMock = $this->get(AbstractRepository::class);
+        $abstractRepositoryMock->shouldAllowMockingProtectedMethods();
+
+        $queryBuilderMock = Mockery::mock(QueryBuilder::class);
+        $queryBuilderMock->shouldReceive('andWhere')
+            ->with("'name' = 'name-emptyFilter'")
+            ->once()
+            ->andReturnSelf();
+
+        $reflectionMethod->invoke($abstractRepositoryMock, $queryBuilderMock, ['name' => []]);
+    }
+
+    public function testAttachGenericFiltersEmptyArrayThrowsWhenFlagOverridden(): void
+    {
+        $reflectionMethod = new ReflectionMethod(AbstractRepository::class, 'attachGenericFilters');
+
+        $abstractRepositoryMock = $this->get(AbstractRepository::class);
+        $abstractRepositoryMock->shouldAllowMockingProtectedMethods();
+        $abstractRepositoryMock->shouldReceive('getFlags')
+            ->andReturn([
+                EmptyArrayFilterBehavior::class => EmptyArrayFilterBehavior::ThrowException,
+            ]);
+
+        $queryBuilderMock = Mockery::mock(QueryBuilder::class);
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('invalid filter `name`');
+
+        $reflectionMethod->invoke($abstractRepositoryMock, $queryBuilderMock, ['name' => []]);
+    }
+
+    public function testAttachGenericFiltersEmptyArrayLogsWarningWhenLoggerProvided(): void
+    {
+        $reflectionMethod = new ReflectionMethod(AbstractRepository::class, 'attachGenericFilters');
+
+        $abstractRepositoryMock = $this->get(AbstractRepository::class);
+        $abstractRepositoryMock->shouldAllowMockingProtectedMethods();
+
+        $loggerMock = Mockery::mock(LoggerInterface::class);
+        $loggerMock->shouldReceive('warning')
+            ->with(
+                'empty array filter forced to match no rows',
+                Mockery::on(static function (array $context): bool {
+                    return 'name' === ($context['filter'] ?? null)
+                        && true === \is_string($context['repository'] ?? null)
+                        && true === \is_string($context['hint'] ?? null);
+                }),
+            )
+            ->once();
+
+        $abstractRepositoryMock->shouldReceive('getLogger')
+            ->andReturn($loggerMock);
+
+        $queryBuilderMock = Mockery::mock(QueryBuilder::class);
+        $queryBuilderMock->shouldReceive('andWhere')
+            ->with("'name' = 'name-emptyFilter'")
+            ->once()
+            ->andReturnSelf();
+
+        $reflectionMethod->invoke($abstractRepositoryMock, $queryBuilderMock, ['name' => []]);
     }
 
     public function testExecuteRunsQueryWithParameters(): void

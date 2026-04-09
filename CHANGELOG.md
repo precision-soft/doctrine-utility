@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.4] - 2026-04-09
+
+### Added
+
+- `EmptyArrayFilterBehavior` enum (`PrecisionSoft\Doctrine\Utility\Repository`) — `ThrowException` and `MatchNone` cases for controlling how `AbstractRepository::attachGenericFilters()` handles empty array filter values
+- `AbstractRepository::getFlags()` — generic, overridable hook returning `array<class-string<\UnitEnum>, \UnitEnum>` for tuning repository behavior; replaces single-purpose flag methods so future flags only require a new enum, no new method
+- `AbstractRepository::getLogger()` — overridable hook returning `?LoggerInterface`; absent by default, repositories opt in by overriding
+- `psr/log` `^2.0 || ^3.0` declared as explicit `require` (was previously pulled transitively through Doctrine)
+
+### Changed
+
+- `AbstractRepository::attachGenericFilters()` — empty array filter values now route through `handleEmptyArrayFilter()`. Default `EmptyArrayFilterBehavior::MatchNone` emits an always-false marker (`'<filterName>' = '<filterName>-emptyFilter'`) instead of silently dropping the filter, preserving legacy "match no rows" semantics while making the fallback grep-able in query logs. Override `getFlags()` with `EmptyArrayFilterBehavior::ThrowException` for strict validation.
+- `AbstractRepository::handleEmptyArrayFilter()` — when behavior is `MatchNone` and `getLogger()` returns a logger, emits a `warning` with `repository`, `filter`, and `hint` context fields so empty-array call sites are observable without requiring strict mode
+- `AbstractRepository::attachJoins()` — `match` expression → `switch` statement for consistency with the rest of the abstract repository's dispatch style
+- `AbstractRepository::getDoctrineRepository()` — exception message uses `static::class` (resolved subclass) instead of `self::class` so the error points at the actual repository being misused
+
+### Fixed
+
+- `AbstractRepository::getAlias()` — `static::$aliasCache` → `self::$aliasCache` (the property is `private static`; late static binding cannot access private members across hierarchy)
+- `MySqlWalker::walkFromClause()` — extract repeated `FROM` clause regex into `FROM_CLAUSE_PATTERN` private constant to remove duplication
+
+### Removed
+
+- `AbstractRepository::attachGenericFilters()` — drop explicit `ArrayParameterType::INTEGER` / `ArrayParameterType::STRING` detection for `IN` clauses; Doctrine ORM resolves the parameter type from entity field metadata, making the explicit branch added in `4.0.3` redundant
+
 ## [4.0.3] - 2026-04-07
 
 ### Fixed
@@ -92,6 +117,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `squizlabs/php_codesniffer` dev dependency
 - `phpcs.xml` configuration file
+
+[4.0.4]: https://github.com/precision-soft/doctrine-utility/compare/v4.0.3...v4.0.4
 
 [4.0.3]: https://github.com/precision-soft/doctrine-utility/compare/v4.0.2...v4.0.3
 

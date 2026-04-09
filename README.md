@@ -122,6 +122,49 @@ class ProductRepository extends AbstractRepository
 }
 ```
 
+### Empty array filter behavior
+
+When `attachGenericFilters()` receives an empty array as a filter value (e.g. `['ids' => []]`), it cannot generate a valid `IN ()` clause. The default behavior is `EmptyArrayFilterBehavior::MatchNone`, which appends an always-false marker condition (`'<filterName>' = '<filterName>-emptyFilter'`) so the query returns zero rows and the offending filter is grep-able in query logs.
+
+To turn empty array filters into hard errors, override `getFlags()`:
+
+```php
+use PrecisionSoft\Doctrine\Utility\Repository\AbstractRepository;
+use PrecisionSoft\Doctrine\Utility\Repository\EmptyArrayFilterBehavior;
+
+class ProductRepository extends AbstractRepository
+{
+    protected function getFlags(): array
+    {
+        return [
+            EmptyArrayFilterBehavior::class => EmptyArrayFilterBehavior::ThrowException,
+        ];
+    }
+}
+```
+
+`getFlags()` is the generic configuration hook for repository behavior — every flag is an enum keyed by its class, so future flags only require a new enum (no new method on `AbstractRepository`).
+
+### Logger
+
+Repositories can expose a `Psr\Log\LoggerInterface` so the abstract repository can warn on observable but non-fatal conditions (e.g. an empty array filter falling back to `MatchNone`):
+
+```php
+use Psr\Log\LoggerInterface;
+
+class ProductRepository extends AbstractRepository
+{
+    public function __construct(private LoggerInterface $logger) {}
+
+    protected function getLogger(): ?LoggerInterface
+    {
+        return $this->logger;
+    }
+}
+```
+
+By default `getLogger()` returns `null` and no logging happens. When provided, warnings include `repository`, `filter`, and `hint` context fields for filtering and remediation.
+
 ## DQL Functions
 
 This library provides MySQL-specific DQL functions. Register them in your Doctrine configuration:

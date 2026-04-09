@@ -24,17 +24,16 @@ class MySqlWalker extends SqlWalker
     public const HINT_SELECT_FOR_UPDATE = 'MySqlWalker.SelectForUpdate';
     public const HINT_IGNORE_INDEX_ON_JOIN = 'MySqlWalker.IgnoreIndexOnJoin';
 
+    private const FROM_CLAUSE_PATTERN = '/(\s+FROM\s+[`\w\.]+\s+\w*)/';
     private const IDENTIFIER_PATTERN = '/^[a-zA-Z_][a-zA-Z0-9_]*(,\s*[a-zA-Z_][a-zA-Z0-9_]*)*$/';
 
     public function walkFromClause(mixed $fromClause): string
     {
-        $regex = '/(\s+FROM\s+[`\w\.]+\s+\w*)/';
-
         $fromClauseSql = parent::walkFromClause($fromClause);
 
-        $fromClauseSql = $this->applyIndexHint($fromClauseSql, $regex, static::HINT_USE_INDEX, 'USE INDEX');
-        $fromClauseSql = $this->applyIndexHint($fromClauseSql, $regex, static::HINT_IGNORE_INDEX, 'IGNORE INDEX');
-        $fromClauseSql = $this->applyIndexHint($fromClauseSql, $regex, static::HINT_FORCE_INDEX, 'FORCE INDEX');
+        $fromClauseSql = $this->applyIndexHint($fromClauseSql, self::FROM_CLAUSE_PATTERN, static::HINT_USE_INDEX, 'USE INDEX');
+        $fromClauseSql = $this->applyIndexHint($fromClauseSql, self::FROM_CLAUSE_PATTERN, static::HINT_IGNORE_INDEX, 'IGNORE INDEX');
+        $fromClauseSql = $this->applyIndexHint($fromClauseSql, self::FROM_CLAUSE_PATTERN, static::HINT_FORCE_INDEX, 'FORCE INDEX');
 
         return $fromClauseSql;
     }

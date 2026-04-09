@@ -8,7 +8,6 @@ declare(strict_types=1);
 
 namespace PrecisionSoft\Doctrine\Utility\Repository;
 
-use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Result;
 use Doctrine\ORM\Query\Expr\Join;
@@ -17,7 +16,9 @@ use Doctrine\Persistence\ManagerRegistry;
 use Doctrine\Persistence\ObjectManager;
 use PrecisionSoft\Doctrine\Utility\Exception\Exception;
 use PrecisionSoft\Doctrine\Utility\Join\JoinCollection;
+use Psr\Log\LoggerInterface;
 use ReflectionClass;
+use UnitEnum;
 
 abstract class AbstractRepository
 {
@@ -148,23 +149,28 @@ abstract class AbstractRepository
         JoinCollection $joinCollection,
     ): void {
         foreach ($joinCollection->getJoins() as $join) {
-            match ($join->getJoinType()) {
-                static::JOIN_INNER => $queryBuilder->innerJoin(
-                    $join->getJoin(),
-                    $join->getAlias(),
-                    $join->getConditionType(),
-                    $join->getCondition(),
-                    $join->getIndexBy(),
-                ),
-                static::JOIN_LEFT => $queryBuilder->leftJoin(
-                    $join->getJoin(),
-                    $join->getAlias(),
-                    $join->getConditionType(),
-                    $join->getCondition(),
-                    $join->getIndexBy(),
-                ),
-                default => throw new Exception(\sprintf('invalid join type `%s`', $join->getJoinType())),
-            };
+            switch ($join->getJoinType()) {
+                case static::JOIN_INNER:
+                    $queryBuilder->innerJoin(
+                        $join->getJoin(),
+                        $join->getAlias(),
+                        $join->getConditionType(),
+                        $join->getCondition(),
+                        $join->getIndexBy(),
+                    );
+                    break;
+                case static::JOIN_LEFT:
+                    $queryBuilder->leftJoin(
+                        $join->getJoin(),
+                        $join->getAlias(),
+                        $join->getConditionType(),
+                        $join->getCondition(),
+                        $join->getIndexBy(),
+                    );
+                    break;
+                default:
+                    throw new Exception(\sprintf('invalid join type `%s`', $join->getJoinType()));
+            }
         }
     }
 
@@ -179,7 +185,7 @@ abstract class AbstractRepository
             throw new Exception(
                 \sprintf(
                     'if you are using `%s` you must use `%s` for the entity repository',
-                    self::class,
+                    static::class,
                     DoctrineRepository::class,
                 ),
             );
@@ -202,6 +208,24 @@ abstract class AbstractRepository
         );
     }
 
+    /**
+     * Override to customize repository behavior. Each entry maps a flag enum class
+     * to one of its cases; absent flags fall back to abstract repository defaults.
+     *
+     * @return array<class-string<UnitEnum>, UnitEnum>
+     */
+    protected function getFlags(): array
+    {
+        return [
+            EmptyArrayFilterBehavior::class => EmptyArrayFilterBehavior::MatchNone,
+        ];
+    }
+
+    protected function getLogger(): ?LoggerInterface
+    {
+        return null;
+    }
+
     private function attachGenericFilters(
         QueryBuilder $queryBuilder,
         array $filters,
@@ -214,19 +238,72 @@ abstract class AbstractRepository
 
             if (true === \is_array($filterValue)) {
                 if ([] === $filterValue) {
+                    $this->handleEmptyArrayFilter($queryBuilder, $filterName);
                     continue;
                 }
 
-                $arrayParameterType = true === \is_int(\reset($filterValue))
-                    ? ArrayParameterType::INTEGER
-                    : ArrayParameterType::STRING;
-
                 $queryBuilder->andWhere(static::getAlias() . ".{$filterName} IN (:{$filterName})")
-                    ->setParameter($filterName, $filterValue, $arrayParameterType);
-            } else {
-                $queryBuilder->andWhere(static::getAlias() . ".{$filterName} = :{$filterName}")
                     ->setParameter($filterName, $filterValue);
+                continue;
             }
+
+            $queryBuilder->andWhere(static::getAlias() . ".{$filterName} = :{$filterName}")
+                ->setParameter($filterName, $filterValue);
         }
+    }
+
+    private function handleEmptyArrayFilter(
+        QueryBuilder $queryBuilder,
+        string $filterName,
+    ): void {
+        $emptyArrayFilterBehavior = $this->getFlag(
+            EmptyArrayFilterBehavior::class,
+            EmptyArrayFilterBehavior::MatchNone,
+        );
+
+        switch ($emptyArrayFilterBehavior) {
+            case EmptyArrayFilterBehavior::ThrowException:
+                throw new Exception(
+                    \sprintf(
+                        'invalid filter `%s` in `%s`: expected non-empty array, got empty array',
+                        $filterName,
+                        static::class,
+                    ),
+                );
+            case EmptyArrayFilterBehavior::MatchNone:
+                $this->getLogger()?->warning(
+                    'empty array filter forced to match no rows',
+                    [
+                        'repository' => static::class,
+                        'filter' => $filterName,
+                        'hint' => 'pass a non-empty array, omit the filter, or override `getFlags()` with `EmptyArrayFilterBehavior::ThrowException`',
+                    ],
+                );
+
+                $queryBuilder->andWhere(
+                    \sprintf("'%s' = '%s-emptyFilter'", $filterName, $filterName),
+                );
+
+                return;
+        }
+    }
+
+    /**
+     * @template TFlag of UnitEnum
+     *
+     * @param class-string<TFlag> $flagClass
+     * @param TFlag $default
+     *
+     * @return TFlag
+     */
+    private function getFlag(string $flagClass, UnitEnum $default): UnitEnum
+    {
+        $flag = $this->getFlags()[$flagClass] ?? null;
+
+        if (false === ($flag instanceof $flagClass)) {
+            return $default;
+        }
+
+        return $flag;
     }
 }
