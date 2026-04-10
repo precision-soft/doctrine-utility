@@ -1,10 +1,27 @@
-# Doctrine utility library
+# Doctrine Utility
+
+[![PHP >= 8.2](https://img.shields.io/badge/php-%3E%3D8.2-8892BF)](https://www.php.net/)
+[![PHPStan Level 8](https://img.shields.io/badge/phpstan-level%208-brightgreen)](https://phpstan.org/)
+[![Code Style PER-CS2.0](https://img.shields.io/badge/code%20style-PER--CS2.0-blue)](https://www.php-fig.org/per/coding-style/)
+[![License MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 Doctrine custom types, functions, and services for **MySQL**.
 
 **You may fork and modify it as you wish.**
 
 Any suggestions are welcomed.
+
+## Requirements
+
+- PHP 8.2+
+- Doctrine ORM 3
+- Doctrine DBAL 4
+
+## Installation
+
+```shell
+composer require precision-soft/doctrine-utility
+```
 
 ## Usage for `AbstractRepository` and `DoctrineRepository`
 

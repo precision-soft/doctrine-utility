@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [4.0.5] - 2026-04-10
+## [v4.0.5] - 2026-04-10
 
 ### Fixed
 
@@ -24,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `precision-soft/symfony-phpunit` bumped from `v3.1.0` to `v3.1.1`
 
-## [4.0.4] - 2026-04-09
+## [v4.0.4] - 2026-04-09
 
 ### Added
 
@@ -49,7 +49,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `AbstractRepository::attachGenericFilters()` — drop explicit `ArrayParameterType::INTEGER` / `ArrayParameterType::STRING` detection for `IN` clauses; Doctrine ORM resolves the parameter type from entity field metadata, making the explicit branch added in `4.0.3` redundant
 
-## [4.0.3] - 2026-04-07
+## [v4.0.3] - 2026-04-07
 
 ### Fixed
 
@@ -62,7 +62,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `MySqlWalker` — `self::HINT_*` → `static::HINT_*` for late static binding on index hint constants
 - `ModifiedTrait` — replace multi-line `Note:` comment with inline `@info` docblock
 
-## [4.0.2] - 2026-04-05
+## [v4.0.2] - 2026-04-05
 
 ### Fixed
 
@@ -86,7 +86,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Remove `setAccessible(true)` calls from test files (unnecessary since PHP 8.1)
 - Update `phpstan-baseline.neon`
 
-## [4.0.1] - 2026-04-04
+## [v4.0.1] - 2026-04-04
 
 ### Fixed
 
@@ -111,7 +111,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Replace PHP DQL function registration snippet with YAML Symfony config in README
 - Quote `$COMPOSER_DEV_MODE` variable in `composer.json` hook script
 
-## [4.0.0] - 2026-04-03
+## [v4.0.0] - 2026-04-03
 
 ### Breaking Changes
 
@@ -137,14 +137,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `squizlabs/php_codesniffer` dev dependency
 - `phpcs.xml` configuration file
 
-[4.0.5]: https://github.com/precision-soft/doctrine-utility/compare/v4.0.4...v4.0.5
+[v4.0.5]: https://github.com/precision-soft/doctrine-utility/compare/v4.0.4...v4.0.5
 
-[4.0.4]: https://github.com/precision-soft/doctrine-utility/compare/v4.0.3...v4.0.4
+[v4.0.4]: https://github.com/precision-soft/doctrine-utility/compare/v4.0.3...v4.0.4
 
-[4.0.3]: https://github.com/precision-soft/doctrine-utility/compare/v4.0.2...v4.0.3
+[v4.0.3]: https://github.com/precision-soft/doctrine-utility/compare/v4.0.2...v4.0.3
 
-[4.0.2]: https://github.com/precision-soft/doctrine-utility/compare/v4.0.1...v4.0.2
+[v4.0.2]: https://github.com/precision-soft/doctrine-utility/compare/v4.0.1...v4.0.2
 
-[4.0.1]: https://github.com/precision-soft/doctrine-utility/compare/v4.0.0...v4.0.1
+[v4.0.1]: https://github.com/precision-soft/doctrine-utility/compare/v4.0.0...v4.0.1
 
-[4.0.0]: https://github.com/precision-soft/doctrine-utility/compare/v3.2.5...v4.0.0
+[v4.0.0]: https://github.com/precision-soft/doctrine-utility/compare/v3.2.5...v4.0.0
