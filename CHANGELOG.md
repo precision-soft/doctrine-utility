@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.5] - 2026-04-10
+
+### Fixed
+
+- `MysqlLockService::release()` — `unset($this->locks[$lockKey])` moved outside the `if ($throwException)` block; lock state was not cleaned up when `$throwException = false`
+- `MysqlLockService::release()` — added explicit `null` guard on `RELEASE_LOCK()` response; `null` means the lock was not held by the current thread and is now treated as an error
+- `MysqlLockService::release()` — replaced `isset()` with `array_key_exists()` for `lockReleased` key check; `isset` silently missed an explicit `null` value
+- `MysqlLockService::acquireLocks()` — re-throw `MysqlLockException` directly instead of wrapping it; original message and code were lost on re-wrap
+- `AbstractJsonSearch` — cast `$lexer->lookahead->value` to `(string)` to prevent type errors on non-string token values
+- `AbstractRepository::handleEmptyArrayFilter()` — added exhaustive `default` case; unsupported `EmptyArrayFilterBehavior` values now throw an exception instead of being silently ignored
+
+### Tests
+
+- Renamed test methods `testIsLocked*` → `testHasLock*` to match the actual method name `hasLock`
+
+### Dependencies
+
+- `precision-soft/symfony-phpunit` bumped from `v3.1.0` to `v3.1.1`
+
 ## [4.0.4] - 2026-04-09
 
 ### Added
@@ -117,6 +136,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `squizlabs/php_codesniffer` dev dependency
 - `phpcs.xml` configuration file
+
+[4.0.5]: https://github.com/precision-soft/doctrine-utility/compare/v4.0.4...v4.0.5
 
 [4.0.4]: https://github.com/precision-soft/doctrine-utility/compare/v4.0.3...v4.0.4
 

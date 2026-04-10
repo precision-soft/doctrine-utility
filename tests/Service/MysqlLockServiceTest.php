@@ -44,7 +44,7 @@ final class MysqlLockServiceTest extends TestCase
         $this->mysqlLockService = new MysqlLockService($this->managerRegistry);
     }
 
-    public function testIsLockedReturnsFalseWhenLockIsFree(): void
+    public function testHasLockReturnsFalseWhenLockIsFree(): void
     {
         $queryResult = Mockery::mock(Result::class);
         $queryResult->shouldReceive('fetchAssociative')
@@ -60,7 +60,7 @@ final class MysqlLockServiceTest extends TestCase
         static::assertSame(false, $this->mysqlLockService->hasLock('test_lock'));
     }
 
-    public function testIsLockedReturnsTrueWhenLockIsNotFree(): void
+    public function testHasLockReturnsTrueWhenLockIsNotFree(): void
     {
         $queryResult = Mockery::mock(Result::class);
         $queryResult->shouldReceive('fetchAssociative')
@@ -76,7 +76,7 @@ final class MysqlLockServiceTest extends TestCase
         static::assertSame(true, $this->mysqlLockService->hasLock('test_lock'));
     }
 
-    public function testIsLockedThrowsExceptionOnFalseRow(): void
+    public function testHasLockThrowsExceptionOnFalseRow(): void
     {
         $queryResult = Mockery::mock(Result::class);
         $queryResult->shouldReceive('fetchAssociative')
@@ -95,7 +95,7 @@ final class MysqlLockServiceTest extends TestCase
         $this->mysqlLockService->hasLock('test_lock');
     }
 
-    public function testIsLockedThrowsExceptionOnMissingKey(): void
+    public function testHasLockThrowsExceptionOnMissingKey(): void
     {
         $queryResult = Mockery::mock(Result::class);
         $queryResult->shouldReceive('fetchAssociative')
@@ -114,7 +114,7 @@ final class MysqlLockServiceTest extends TestCase
         $this->mysqlLockService->hasLock('test_lock');
     }
 
-    public function testIsLockedWithEntityManagerName(): void
+    public function testHasLockWithEntityManagerName(): void
     {
         $this->managerRegistry->shouldReceive('getManager')
             ->with('custom')

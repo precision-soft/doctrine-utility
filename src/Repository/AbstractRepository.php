@@ -285,6 +285,8 @@ abstract class AbstractRepository
                 );
 
                 return;
+            default:
+                throw new Exception(\sprintf('unsupported empty array filter behavior `%s`', $emptyArrayFilterBehavior->name));
         }
     }
 

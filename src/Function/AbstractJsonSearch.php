@@ -30,7 +30,7 @@ abstract class AbstractJsonSearch extends FunctionNode
             );
         }
 
-        $lookaheadValue = $lexer->lookahead->value;
+        $lookaheadValue = (string)$lexer->lookahead->value;
 
         if (0 !== \strcasecmp(self::MODE_ONE, $lookaheadValue) && 0 !== \strcasecmp(self::MODE_ALL, $lookaheadValue)) {
             throw new Exception(

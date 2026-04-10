@@ -2438,16 +2438,16 @@
         },
         {
             "name": "precision-soft/symfony-phpunit",
-            "version": "v3.1.0",
+            "version": "v3.1.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/precision-soft/symfony-phpunit.git",
-                "reference": "dd530c34db1042176203d03c3ee12dde5e0c6ba0"
+                "reference": "c07ce4677447cdb9b0ce0e116e319650642a590b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/precision-soft/symfony-phpunit/zipball/dd530c34db1042176203d03c3ee12dde5e0c6ba0",
-                "reference": "dd530c34db1042176203d03c3ee12dde5e0c6ba0",
+                "url": "https://api.github.com/repos/precision-soft/symfony-phpunit/zipball/c07ce4677447cdb9b0ce0e116e319650642a590b",
+                "reference": "c07ce4677447cdb9b0ce0e116e319650642a590b",
                 "shasum": ""
             },
             "require": {
@@ -2493,9 +2493,9 @@
             ],
             "support": {
                 "issues": "https://github.com/precision-soft/symfony-phpunit/issues",
-                "source": "https://github.com/precision-soft/symfony-phpunit/tree/v3.1.0"
+                "source": "https://github.com/precision-soft/symfony-phpunit/tree/v3.1.1"
             },
-            "time": "2026-04-07T11:54:31+00:00"
+            "time": "2026-04-10T10:25:30+00:00"
         },
         {
             "name": "psr/event-dispatcher",

@@ -151,11 +151,17 @@ class MysqlLockService
             $releaseQuery = \sprintf('SELECT RELEASE_LOCK(%s) AS lockReleased', $this->locks[$lockKey]['preparedLockName']);
             $releaseRow = $connection->executeQuery($releaseQuery)->fetchAssociative();
 
-            if (false === $releaseRow || false === isset($releaseRow['lockReleased'])) {
+            if (false === $releaseRow || false === \array_key_exists('lockReleased', $releaseRow)) {
                 throw new MysqlLockException('failed to release lock: invalid response');
             }
 
-            switch ((int)$releaseRow['lockReleased']) {
+            $lockReleased = $releaseRow['lockReleased'];
+
+            if (null === $lockReleased) {
+                throw new MysqlLockException('failed to release lock: invalid response');
+            }
+
+            switch ((int)$lockReleased) {
                 case self::RELEASE_LOCK_SUCCESS:
                     unset($this->locks[$lockKey]);
 
@@ -166,8 +172,9 @@ class MysqlLockService
                     throw new MysqlLockException('failed to release lock: unexpected response');
             }
         } catch (Throwable $throwable) {
+            unset($this->locks[$lockKey]);
+
             if (true === $throwException) {
-                unset($this->locks[$lockKey]);
                 if (true === $throwable instanceof MysqlLockException) {
                     throw $throwable;
                 }
@@ -193,6 +200,10 @@ class MysqlLockService
             }
         } catch (Throwable $throwable) {
             $this->releaseLocks($lockNames, $entityManagerName);
+
+            if (true === $throwable instanceof MysqlLockException) {
+                throw $throwable;
+            }
 
             throw new MysqlLockException($throwable->getMessage(), (int)$throwable->getCode(), $throwable);
         }
