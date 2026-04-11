@@ -25,6 +25,7 @@ abstract class AbstractRepository
     public const JOIN_LEFT = Join::LEFT_JOIN;
     public const JOIN_INNER = Join::INNER_JOIN;
 
+    /** @var array<class-string, string> */
     private static array $aliasCache = [];
 
     private ManagerRegistry $managerRegistry;
@@ -49,6 +50,7 @@ abstract class AbstractRepository
         $this->getManager()->refresh($entity);
     }
 
+    /** @param array<string, mixed> $filters */
     final protected function attachFilters(
         QueryBuilder $queryBuilder,
         array $filters,
@@ -103,6 +105,7 @@ abstract class AbstractRepository
         return $this->getDoctrineRepository($managerName)->createQueryBuilder(static::getAlias());
     }
 
+    /** @param array<string, mixed> $filters */
     final protected function createQueryBuilderFromFilters(
         array $filters,
         bool $selectJoins = false,
@@ -199,6 +202,7 @@ abstract class AbstractRepository
         return null;
     }
 
+    /** @param array<string, mixed> $filters */
     protected function attachCustomFilters(
         QueryBuilder $queryBuilder,
         array $filters,
@@ -226,6 +230,7 @@ abstract class AbstractRepository
         return null;
     }
 
+    /** @param array<string, mixed> $filters */
     private function attachGenericFilters(
         QueryBuilder $queryBuilder,
         array $filters,

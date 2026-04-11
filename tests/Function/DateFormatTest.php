@@ -61,7 +61,7 @@ final class DateFormatTest extends TestCase
         $dateFormat->secondDateExpression = Mockery::mock(Node::class);
 
         $this->expectException(Exception::class);
-        $this->expectExceptionMessage('method `DATE_FORMAT` is not supported');
+        $this->expectExceptionMessage('function `DATE_FORMAT` is not supported');
 
         $dateFormat->getSql($sqlWalker);
     }

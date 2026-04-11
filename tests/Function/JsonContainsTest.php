@@ -74,7 +74,7 @@ final class JsonContainsTest extends TestCase
         $jsonContains->jsonValExpr = Mockery::mock(Node::class);
 
         $this->expectException(Exception::class);
-        $this->expectExceptionMessage('method `JSON_CONTAINS` is not supported');
+        $this->expectExceptionMessage('function `JSON_CONTAINS` is not supported');
 
         $jsonContains->getSql($sqlWalker);
     }

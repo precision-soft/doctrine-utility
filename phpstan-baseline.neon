@@ -13,30 +13,6 @@ parameters:
 			path: src/Function/DateFormat.php
 
 		-
-			message: '#^Method PrecisionSoft\\Doctrine\\Utility\\Repository\\AbstractRepository\:\:attachCustomFilters\(\) has parameter \$filters with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Repository/AbstractRepository.php
-
-		-
-			message: '#^Method PrecisionSoft\\Doctrine\\Utility\\Repository\\AbstractRepository\:\:attachFilters\(\) has parameter \$filters with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Repository/AbstractRepository.php
-
-		-
-			message: '#^Method PrecisionSoft\\Doctrine\\Utility\\Repository\\AbstractRepository\:\:attachGenericFilters\(\) has parameter \$filters with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Repository/AbstractRepository.php
-
-		-
-			message: '#^Method PrecisionSoft\\Doctrine\\Utility\\Repository\\AbstractRepository\:\:createQueryBuilderFromFilters\(\) has parameter \$filters with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Repository/AbstractRepository.php
-
-		-
 			message: '#^Method PrecisionSoft\\Doctrine\\Utility\\Repository\\AbstractRepository\:\:execute\(\) has parameter \$parameters with no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
@@ -67,12 +43,6 @@ parameters:
 			path: src/Repository/AbstractRepository.php
 
 		-
-			message: '#^Property PrecisionSoft\\Doctrine\\Utility\\Repository\\AbstractRepository\:\:\$aliasCache type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Repository/AbstractRepository.php
-
-		-
 			message: '#^Unable to resolve the template type T in call to method Doctrine\\Persistence\\ManagerRegistry\:\:getRepository\(\)$#'
 			identifier: argument.templateType
 			count: 1
@@ -83,18 +53,6 @@ parameters:
 			identifier: missingType.generics
 			count: 1
 			path: src/Repository/DoctrineRepository.php
-
-		-
-			message: '#^Method PrecisionSoft\\Doctrine\\Utility\\Service\\MysqlLockService\:\:acquireLocks\(\) has parameter \$lockNames with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Service/MysqlLockService.php
-
-		-
-			message: '#^Method PrecisionSoft\\Doctrine\\Utility\\Service\\MysqlLockService\:\:releaseLocks\(\) has parameter \$lockNames with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Service/MysqlLockService.php
 
 		-
 			message: '#^Call to an undefined method object\:\:getCreated\(\)\.$#'

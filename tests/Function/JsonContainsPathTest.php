@@ -76,7 +76,7 @@ final class JsonContainsPathTest extends TestCase
         $jsonContainsPath->jsonPaths = [Mockery::mock(Node::class)];
 
         $this->expectException(Exception::class);
-        $this->expectExceptionMessage('method `JSON_CONTAINS_PATH` is not supported');
+        $this->expectExceptionMessage('function `JSON_CONTAINS_PATH` is not supported');
 
         $jsonContainsPath->getSql($sqlWalker);
     }

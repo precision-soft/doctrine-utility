@@ -44,6 +44,6 @@ class DateFormat extends FunctionNode
             );
         }
 
-        throw new Exception(\sprintf('method `%s` is not supported', static::FUNCTION_NAME));
+        throw new Exception(\sprintf('function `%s` is not supported', static::FUNCTION_NAME));
     }
 }

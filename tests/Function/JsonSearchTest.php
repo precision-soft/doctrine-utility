@@ -96,7 +96,7 @@ final class JsonSearchTest extends TestCase
         $jsonSearch->jsonSearchExpr = Mockery::mock(Node::class);
 
         $this->expectException(Exception::class);
-        $this->expectExceptionMessage('method `JSON_SEARCH` is not supported');
+        $this->expectExceptionMessage('function `JSON_SEARCH` is not supported');
 
         $jsonSearch->getSql($sqlWalker);
     }

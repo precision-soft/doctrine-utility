@@ -73,7 +73,7 @@ final class JsonExtractTest extends TestCase
         $jsonExtract->jsonPaths = [Mockery::mock(Node::class)];
 
         $this->expectException(Exception::class);
-        $this->expectExceptionMessage('method `JSON_EXTRACT` is not supported');
+        $this->expectExceptionMessage('function `JSON_EXTRACT` is not supported');
 
         $jsonExtract->getSql($sqlWalker);
     }

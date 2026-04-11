@@ -26,12 +26,11 @@ class MysqlLockService
     /**
      * @var array<string, array{preparedLockName: string, count: int, lockName: string, entityManagerName: ?string}>
      */
-    private array $locks;
+    private array $locks = [];
 
     public function __construct(ManagerRegistry $managerRegistry)
     {
         $this->managerRegistry = $managerRegistry;
-        $this->locks = [];
     }
 
     public function hasLock(string $lockName, ?string $entityManagerName = null): bool
@@ -190,6 +189,7 @@ class MysqlLockService
         return $this;
     }
 
+    /** @param list<string> $lockNames */
     public function acquireLocks(array $lockNames, int $timeout = 0, ?string $entityManagerName = null): self
     {
         \sort($lockNames);
@@ -211,6 +211,7 @@ class MysqlLockService
         return $this;
     }
 
+    /** @param list<string>|null $lockNames */
     public function releaseLocks(
         ?array $lockNames = null,
         ?string $entityManagerName = null,

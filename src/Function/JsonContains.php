@@ -38,7 +38,7 @@ class JsonContains extends FunctionNode
             return \sprintf('%s(%s, %s)', static::FUNCTION_NAME, $jsonDocumentSql, $jsonValueSql . $jsonPathSql);
         }
 
-        throw new Exception(\sprintf('method `%s` is not supported', static::FUNCTION_NAME));
+        throw new Exception(\sprintf('function `%s` is not supported', static::FUNCTION_NAME));
     }
 
     public function parse(Parser $parser): void

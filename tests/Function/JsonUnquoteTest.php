@@ -56,7 +56,7 @@ final class JsonUnquoteTest extends TestCase
         $jsonUnquote->jsonValExpr = Mockery::mock(Node::class);
 
         $this->expectException(Exception::class);
-        $this->expectExceptionMessage('method `JSON_UNQUOTE` is not supported');
+        $this->expectExceptionMessage('function `JSON_UNQUOTE` is not supported');
 
         $jsonUnquote->getSql($sqlWalker);
     }

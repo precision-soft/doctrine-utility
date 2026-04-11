@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- DQL functions exception messages — "method" replaced with "function" (DateFormat, JsonContains, JsonContainsPath, JsonExtract, JsonSearch, JsonUnquote)
+- `MysqlLockService` — remove redundant `$locks = []` from constructor; property is now initialized inline
+
+### Added
+
+- `AbstractRepository` — `@var array<class-string, string>` on `$aliasCache`
+- `AbstractRepository` — `@param array<string, mixed> $filters` on `attachFilters()`, `createQueryBuilderFromFilters()`, `attachCustomFilters()`, `attachGenericFilters()`
+- `MysqlLockService` — `@param list<string>` on `$lockNames` in `acquireLocks()` and `releaseLocks()`
+
+### Removed
+
+- `phpstan-baseline.neon` — remove 7 resolved entries (covered by new PHPDoc annotations on `AbstractRepository` and `MysqlLockService`)
+
 ## [v4.0.5] - 2026-04-10
 
 ### Fixed
