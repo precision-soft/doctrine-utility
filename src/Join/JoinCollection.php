@@ -24,7 +24,7 @@ class JoinCollection
         return $this->joins;
     }
 
-    public function addJoin(Join $join): self
+    public function addJoin(Join $join): static
     {
         $alias = $join->getAlias();
 

@@ -12,7 +12,7 @@ use Doctrine\ORM\EntityRepository;
 
 class DoctrineRepository extends EntityRepository
 {
-    final public function hasField(string $fieldName): bool
+    public function hasField(string $fieldName): bool
     {
         return true === $this->getClassMetadata()->hasField($fieldName)
             || (

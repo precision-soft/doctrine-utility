@@ -26,9 +26,9 @@ abstract class AbstractRepository
     public const JOIN_INNER = Join::INNER_JOIN;
 
     /** @var array<class-string, string> */
-    private static array $aliasCache = [];
+    protected static array $aliasCache = [];
 
-    private ManagerRegistry $managerRegistry;
+    protected ManagerRegistry $managerRegistry;
 
     abstract protected function getEntityClass(): string;
 
@@ -38,20 +38,20 @@ abstract class AbstractRepository
     }
 
     /** @internal used by the dependency injection system */
-    final public function setManagerRegistry(ManagerRegistry $managerRegistry): self
+    public function setManagerRegistry(ManagerRegistry $managerRegistry): self
     {
         $this->managerRegistry = $managerRegistry;
 
         return $this;
     }
 
-    final public function refresh(object $entity): void
+    public function refresh(object $entity): void
     {
         $this->getManager()->refresh($entity);
     }
 
     /** @param array<string, mixed> $filters */
-    final protected function attachFilters(
+    protected function attachFilters(
         QueryBuilder $queryBuilder,
         array $filters,
         ?string $managerName = null,
@@ -74,12 +74,12 @@ abstract class AbstractRepository
         return $joinCollection;
     }
 
-    final protected function getManager(): ObjectManager
+    protected function getManager(): ObjectManager
     {
         return $this->managerRegistry->getManager($this->getManagerName());
     }
 
-    final protected function execute(
+    protected function execute(
         string $query,
         array $parameters = [],
         ?string $connectionName = null,
@@ -93,20 +93,20 @@ abstract class AbstractRepository
         return $stmt->executeQuery();
     }
 
-    final protected function getConnection(
+    protected function getConnection(
         ?string $connectionName = null,
     ): Connection {
         return $this->managerRegistry->getConnection($connectionName);
     }
 
-    final protected function createQueryBuilder(
+    protected function createQueryBuilder(
         ?string $managerName = null,
     ): QueryBuilder {
         return $this->getDoctrineRepository($managerName)->createQueryBuilder(static::getAlias());
     }
 
     /** @param array<string, mixed> $filters */
-    final protected function createQueryBuilderFromFilters(
+    protected function createQueryBuilderFromFilters(
         array $filters,
         bool $selectJoins = false,
         ?string $managerName = null,
@@ -127,7 +127,7 @@ abstract class AbstractRepository
      *
      * @return array{0: array<string, mixed>, 1: array<string, mixed>}
      */
-    final protected function sortFilters(
+    protected function sortFilters(
         array $filters,
         ?string $managerName = null,
     ): array {
@@ -147,7 +147,7 @@ abstract class AbstractRepository
         return [$genericFilters, $customFilters];
     }
 
-    final protected function attachJoins(
+    protected function attachJoins(
         QueryBuilder $queryBuilder,
         JoinCollection $joinCollection,
     ): void {
@@ -177,7 +177,7 @@ abstract class AbstractRepository
         }
     }
 
-    final protected function getDoctrineRepository(
+    protected function getDoctrineRepository(
         ?string $managerName = null,
     ): DoctrineRepository {
         $managerName ??= $this->getManagerName();
@@ -231,7 +231,7 @@ abstract class AbstractRepository
     }
 
     /** @param array<string, mixed> $filters */
-    private function attachGenericFilters(
+    protected function attachGenericFilters(
         QueryBuilder $queryBuilder,
         array $filters,
     ): void {
@@ -257,7 +257,7 @@ abstract class AbstractRepository
         }
     }
 
-    private function handleEmptyArrayFilter(
+    protected function handleEmptyArrayFilter(
         QueryBuilder $queryBuilder,
         string $filterName,
     ): void {
@@ -303,7 +303,7 @@ abstract class AbstractRepository
      *
      * @return TFlag
      */
-    private function getFlag(string $flagClass, UnitEnum $default): UnitEnum
+    protected function getFlag(string $flagClass, UnitEnum $default): UnitEnum
     {
         $flag = $this->getFlags()[$flagClass] ?? null;
 

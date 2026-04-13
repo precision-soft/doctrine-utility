@@ -15,18 +15,18 @@ use Throwable;
 
 class MysqlLockService
 {
-    private const IS_FREE_LOCK_FREE = 1;
-    private const GET_LOCK_SUCCESS = 1;
-    private const GET_LOCK_TIMEOUT = 0;
-    private const RELEASE_LOCK_SUCCESS = 1;
-    private const RELEASE_LOCK_NOT_OWNED = 0;
+    protected const IS_FREE_LOCK_FREE = 1;
+    protected const GET_LOCK_SUCCESS = 1;
+    protected const GET_LOCK_TIMEOUT = 0;
+    protected const RELEASE_LOCK_SUCCESS = 1;
+    protected const RELEASE_LOCK_NOT_OWNED = 0;
 
     private ManagerRegistry $managerRegistry;
 
     /**
      * @var array<string, array{preparedLockName: string, count: int, lockName: string, entityManagerName: ?string}>
      */
-    private array $locks = [];
+    protected array $locks = [];
 
     public function __construct(ManagerRegistry $managerRegistry)
     {
@@ -244,12 +244,12 @@ class MysqlLockService
         return $this;
     }
 
-    private function buildLockKey(string $lockName, ?string $entityManagerName): string
+    protected function buildLockKey(string $lockName, ?string $entityManagerName): string
     {
         return $lockName . '@@' . ($entityManagerName ?? 'default');
     }
 
-    private function prepareLockName(string $lockName, EntityManager $entityManager): string
+    protected function prepareLockName(string $lockName, EntityManager $entityManager): string
     {
         if (64 < \strlen($lockName)) {
             $lockName = \substr($lockName, 0, 10) . '>>' . \md5($lockName) . '<<' . \substr($lockName, -10);
@@ -258,7 +258,7 @@ class MysqlLockService
         return $entityManager->getConnection()->quote($lockName);
     }
 
-    private function getEntityManager(?string $entityManagerName): EntityManager
+    protected function getEntityManager(?string $entityManagerName): EntityManager
     {
         $entityManager = $this->managerRegistry->getManager($entityManagerName);
 

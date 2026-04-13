@@ -221,15 +221,6 @@ final class AbstractRepositoryTest extends AbstractTestCase
     private function mockAbstractRepository(MockInterface $abstractRepositoryMock): void
     {
         $classMetadataMock = Mockery::mock(ClassMetadata::class);
-        $classMetadataMock->shouldReceive('hasField')
-            ->once()
-            ->andReturn(true);
-        $classMetadataMock->shouldReceive('hasField')
-            ->times(2)
-            ->andReturn(false);
-        $classMetadataMock->shouldReceive('hasAssociation')
-            ->times(2)
-            ->andReturn(false);
 
         $queryBuilderMock = Mockery::mock(QueryBuilder::class);
         $queryBuilderMock->shouldReceive('andWhere', 'setParameter', 'innerJoin', 'addSelect')
@@ -244,6 +235,18 @@ final class AbstractRepositoryTest extends AbstractTestCase
         $doctrineRepositoryMock->shouldReceive('getClassMetadata')
             ->byDefault()
             ->andReturn($classMetadataMock);
+        $doctrineRepositoryMock->shouldReceive('hasField')
+            ->once()
+            ->with('one')
+            ->andReturn(true);
+        $doctrineRepositoryMock->shouldReceive('hasField')
+            ->once()
+            ->with('two')
+            ->andReturn(false);
+        $doctrineRepositoryMock->shouldReceive('hasField')
+            ->once()
+            ->with('three')
+            ->andReturn(false);
 
         $managerRegistryMock = Mockery::mock(ManagerRegistry::class);
         $managerRegistryMock->shouldReceive('getRepository')

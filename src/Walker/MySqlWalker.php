@@ -24,8 +24,8 @@ class MySqlWalker extends SqlWalker
     public const HINT_SELECT_FOR_UPDATE = 'MySqlWalker.SelectForUpdate';
     public const HINT_IGNORE_INDEX_ON_JOIN = 'MySqlWalker.IgnoreIndexOnJoin';
 
-    private const FROM_CLAUSE_PATTERN = '/(\s+FROM\s+[`\w\.]+\s+\w*)/';
-    private const IDENTIFIER_PATTERN = '/^[a-zA-Z_][a-zA-Z0-9_]*(,\s*[a-zA-Z_][a-zA-Z0-9_]*)*$/';
+    protected const FROM_CLAUSE_PATTERN = '/(\s+FROM\s+[`\w\.]+\s+\w*)/';
+    protected const IDENTIFIER_PATTERN = '/^[a-zA-Z_][a-zA-Z0-9_]*(,\s*[a-zA-Z_][a-zA-Z0-9_]*)*$/';
 
     public function walkFromClause(mixed $fromClause): string
     {
@@ -86,7 +86,7 @@ class MySqlWalker extends SqlWalker
         return $joinDeclarationSql;
     }
 
-    private function applyIndexHint(string $sqlFragment, string $regex, string $hintName, string $indexType): string
+    protected function applyIndexHint(string $sqlFragment, string $regex, string $hintName, string $indexType): string
     {
         $indexName = $this->getQuery()->getHint($hintName);
 
@@ -105,7 +105,7 @@ class MySqlWalker extends SqlWalker
         return $replacedSqlFragment;
     }
 
-    private function validateIdentifier(string $identifier): void
+    protected function validateIdentifier(string $identifier): void
     {
         if (1 !== \preg_match(self::IDENTIFIER_PATTERN, $identifier)) {
             throw new Exception(

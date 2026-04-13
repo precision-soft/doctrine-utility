@@ -7,10 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v4.1.0] - 2026-04-12
+
 ### Changed
 
+- `AbstractRepository` — removed `final` from all 11 method declarations (`setManagerRegistry`, `refresh`, `attachFilters`, `getManager`, `execute`, `getConnection`, `createQueryBuilder`, `createQueryBuilderFromFilters`, `sortFilters`, `attachJoins`, `getDoctrineRepository`)
+- `AbstractRepository` — `$aliasCache` visibility widened from `private static` to `protected static`; `$managerRegistry` from `private` to `protected`
+- `AbstractRepository` — `attachGenericFilters()`, `handleEmptyArrayFilter()`, `getFlag()` visibility widened from `private` to `protected`
+- `DoctrineRepository` — removed `final` from `hasField()`
+- `CreatedTrait` — `$created` visibility widened from `private` to `protected`
+- `ModifiedTrait` — `$modified` visibility widened from `private` to `protected`
+- `MysqlLockService` — `$locks` visibility widened from `private` to `protected`; `buildLockKey()`, `prepareLockName()`, `getEntityManager()` from `private` to `protected`; 5 constants from `private const` to `protected const`
+- `MySqlWalker` — `applyIndexHint()`, `validateIdentifier()` visibility widened from `private` to `protected`; 2 constants from `private const` to `protected const`
+- `JoinCollection::addJoin()` — return type changed from `self` to `static` for fluent extensibility
 - DQL functions exception messages — "method" replaced with "function" (DateFormat, JsonContains, JsonContainsPath, JsonExtract, JsonSearch, JsonUnquote)
 - `MysqlLockService` — remove redundant `$locks = []` from constructor; property is now initialized inline
+- `SqlWalkerTestTrait` — `createMysqlSqlWalker()`, `createNonMysqlSqlWalker()` visibility widened from `private` to `protected`
 
 ### Added
 
@@ -153,6 +165,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `squizlabs/php_codesniffer` dev dependency
 - `phpcs.xml` configuration file
+
+[v4.1.0]: https://github.com/precision-soft/doctrine-utility/compare/v4.0.5...v4.1.0
 
 [v4.0.5]: https://github.com/precision-soft/doctrine-utility/compare/v4.0.4...v4.0.5
 
