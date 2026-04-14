@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v4.1.1] - 2026-04-14
+
+### Changed
+
+- `AbstractJsonSearch` — extract `assertMySQLPlatform()` helper to centralize the MySQL platform guard previously duplicated in each DQL function
+- `DateFormat`, `JsonContains`, `JsonExtract`, `JsonUnquote` — now extend `AbstractJsonSearch` and call `assertMySQLPlatform()` instead of inlining the `instanceof MySQLPlatform` check
+- `MysqlLockService` — introduce private `wrapException()` helper; `hasLock()`, `acquire()`, `acquireLocks()` now delegate exception normalization (pass-through for `MysqlLockException`, wrap other `Throwable`) to it, removing three duplicated `try`/`catch` blocks
+- `MysqlLockService::acquireLocks()` — on failure, the rollback (`releaseLocks()`) runs through the `wrapException()` `onError` callback instead of an explicit `catch` block
+- `MysqlLockService` — reorder properties so `$locks` (protected) precedes `$managerRegistry` (private)
+
+### Added
+
+- `JoinCollection::addJoin()` — throw `Exception` with message `alias cannot be empty` when `$join->getAlias()` returns an empty string, before the duplicate-alias check
+
+### Removed
+
+- `phpstan-baseline.neon` — decrement 4 ignore counts in `tests/Function/JsonContainsTest.php` and `tests/Function/JsonUnquoteTest.php` after removing redundant `walkStringPrimary()` mock expectations in the non-MySQL throw tests (guard now fires before any walker call)
+
+### Dependencies
+
+- `phpstan/phpstan` bumped from `2.1.46` to `2.1.47`
+- `precision-soft/symfony-phpunit` bumped from `v3.2.0` to `v3.2.1`
+
 ## [v4.1.0] - 2026-04-12
 
 ### Changed
@@ -165,6 +188,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `squizlabs/php_codesniffer` dev dependency
 - `phpcs.xml` configuration file
+
+[v4.1.1]: https://github.com/precision-soft/doctrine-utility/compare/v4.1.0...v4.1.1
 
 [v4.1.0]: https://github.com/precision-soft/doctrine-utility/compare/v4.0.5...v4.1.0
 
