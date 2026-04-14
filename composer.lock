@@ -2455,11 +2455,11 @@
         },
         {
             "name": "phpstan/phpstan",
-            "version": "2.1.46",
+            "version": "2.1.47",
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/a193923fc2d6325ef4e741cf3af8c3e8f54dbf25",
-                "reference": "a193923fc2d6325ef4e741cf3af8c3e8f54dbf25",
+                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/79015445d8bd79e62b29140f12e5bfced1dcca65",
+                "reference": "79015445d8bd79e62b29140f12e5bfced1dcca65",
                 "shasum": ""
             },
             "require": {
@@ -2504,20 +2504,20 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-04-01T09:25:14+00:00"
+            "time": "2026-04-13T15:49:08+00:00"
         },
         {
             "name": "precision-soft/symfony-phpunit",
-            "version": "v3.2.0",
+            "version": "v3.2.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/precision-soft/symfony-phpunit.git",
-                "reference": "64640d23a2c8442a2a52ce93540fea935227c009"
+                "reference": "90e2de8b0c2d22cacb02b47291555da8191d2e21"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/precision-soft/symfony-phpunit/zipball/64640d23a2c8442a2a52ce93540fea935227c009",
-                "reference": "64640d23a2c8442a2a52ce93540fea935227c009",
+                "url": "https://api.github.com/repos/precision-soft/symfony-phpunit/zipball/90e2de8b0c2d22cacb02b47291555da8191d2e21",
+                "reference": "90e2de8b0c2d22cacb02b47291555da8191d2e21",
                 "shasum": ""
             },
             "require": {
@@ -2563,9 +2563,9 @@
             ],
             "support": {
                 "issues": "https://github.com/precision-soft/symfony-phpunit/issues",
-                "source": "https://github.com/precision-soft/symfony-phpunit/tree/v3.2.0"
+                "source": "https://github.com/precision-soft/symfony-phpunit/tree/v3.2.1"
             },
-            "time": "2026-04-13T06:20:31+00:00"
+            "time": "2026-04-13T18:32:41+00:00"
         },
         {
             "name": "psr/event-dispatcher",

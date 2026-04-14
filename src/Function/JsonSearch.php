@@ -8,12 +8,10 @@ declare(strict_types=1);
 
 namespace PrecisionSoft\Doctrine\Utility\Function;
 
-use Doctrine\DBAL\Platforms\MySQLPlatform;
 use Doctrine\ORM\Query\AST\Node;
 use Doctrine\ORM\Query\Parser;
 use Doctrine\ORM\Query\SqlWalker;
 use Doctrine\ORM\Query\TokenType;
-use PrecisionSoft\Doctrine\Utility\Exception\Exception;
 
 class JsonSearch extends AbstractJsonSearch
 {
@@ -27,6 +25,8 @@ class JsonSearch extends AbstractJsonSearch
 
     public function getSql(SqlWalker $sqlWalker): string
     {
+        $this->assertMySQLPlatform($sqlWalker);
+
         $jsonDocumentSql = $sqlWalker->walkStringPrimary($this->jsonDocExpr);
         $modeSql = $sqlWalker->walkStringPrimary($this->mode);
         $searchArgsSql = $sqlWalker->walkStringPrimary($this->jsonSearchExpr);
@@ -43,11 +43,7 @@ class JsonSearch extends AbstractJsonSearch
             }
         }
 
-        if (true === ($sqlWalker->getConnection()->getDatabasePlatform() instanceof MySQLPlatform)) {
-            return \sprintf('%s(%s, %s, %s)', static::FUNCTION_NAME, $jsonDocumentSql, $modeSql, $searchArgsSql);
-        }
-
-        throw new Exception(\sprintf('function `%s` is not supported', static::FUNCTION_NAME));
+        return \sprintf('%s(%s, %s, %s)', static::FUNCTION_NAME, $jsonDocumentSql, $modeSql, $searchArgsSql);
     }
 
     public function parse(Parser $parser): void

@@ -66,8 +66,6 @@ final class JsonContainsTest extends TestCase
     public function testGetSqlThrowsOnNonMysqlPlatform(): void
     {
         $sqlWalker = $this->createNonMysqlSqlWalker();
-        $sqlWalker->shouldReceive('walkStringPrimary')
-            ->andReturn('t0_.data', "'value'");
 
         $jsonContains = $this->createInstance();
         $jsonContains->jsonDocExpr = Mockery::mock(Node::class);

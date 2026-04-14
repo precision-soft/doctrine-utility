@@ -21,12 +21,12 @@ class MysqlLockService
     protected const RELEASE_LOCK_SUCCESS = 1;
     protected const RELEASE_LOCK_NOT_OWNED = 0;
 
-    private ManagerRegistry $managerRegistry;
-
     /**
      * @var array<string, array{preparedLockName: string, count: int, lockName: string, entityManagerName: ?string}>
      */
     protected array $locks = [];
+
+    private ManagerRegistry $managerRegistry;
 
     public function __construct(ManagerRegistry $managerRegistry)
     {
@@ -35,7 +35,7 @@ class MysqlLockService
 
     public function hasLock(string $lockName, ?string $entityManagerName = null): bool
     {
-        try {
+        return $this->wrapException(function () use ($lockName, $entityManagerName): bool {
             $entityManager = $this->getEntityManager($entityManagerName);
             $connection = $entityManager->getConnection();
             $lockStatusQuery = \sprintf(
@@ -49,13 +49,7 @@ class MysqlLockService
             }
 
             return self::IS_FREE_LOCK_FREE !== (int)$lockStatusRow['lockIsFree'];
-        } catch (Throwable $throwable) {
-            if (true === $throwable instanceof MysqlLockException) {
-                throw $throwable;
-            }
-
-            throw new MysqlLockException($throwable->getMessage(), (int)$throwable->getCode(), $throwable);
-        }
+        });
     }
 
     public function acquire(
@@ -72,7 +66,7 @@ class MysqlLockService
             return $this;
         }
 
-        try {
+        $this->wrapException(function () use ($lockName, $timeout, $entityManagerName, $lockKey): void {
             $entityManager = $this->getEntityManager($entityManagerName);
             $preparedLockName = $this->prepareLockName($lockName, $entityManager);
             $connection = $entityManager->getConnection();
@@ -110,17 +104,7 @@ class MysqlLockService
                 default:
                     throw new MysqlLockException('failed to acquire lock: unexpected response');
             }
-        } catch (Throwable $throwable) {
-            if (true === $throwable instanceof MysqlLockException) {
-                throw $throwable;
-            }
-
-            throw new MysqlLockException(
-                \sprintf('failed acquiring lock `%s`: `%s`', $lockName, $throwable->getMessage()),
-                (int)$throwable->getCode(),
-                $throwable,
-            );
-        }
+        }, \sprintf('failed acquiring lock `%s`', $lockName));
 
         return $this;
     }
@@ -194,19 +178,13 @@ class MysqlLockService
     {
         \sort($lockNames);
 
-        try {
+        $this->wrapException(function () use ($lockNames, $timeout, $entityManagerName): void {
             foreach ($lockNames as $lockName) {
                 $this->acquire($lockName, $timeout, $entityManagerName);
             }
-        } catch (Throwable $throwable) {
+        }, null, function () use ($lockNames, $entityManagerName): void {
             $this->releaseLocks($lockNames, $entityManagerName);
-
-            if (true === $throwable instanceof MysqlLockException) {
-                throw $throwable;
-            }
-
-            throw new MysqlLockException($throwable->getMessage(), (int)$throwable->getCode(), $throwable);
-        }
+        });
 
         return $this;
     }
@@ -242,6 +220,29 @@ class MysqlLockService
         }
 
         return $this;
+    }
+
+    private function wrapException(callable $callback, ?string $messagePrefix = null, ?callable $onError = null): mixed
+    {
+        try {
+            return $callback();
+        } catch (MysqlLockException $mysqlLockException) {
+            if (null !== $onError) {
+                $onError();
+            }
+
+            throw $mysqlLockException;
+        } catch (Throwable $throwable) {
+            if (null !== $onError) {
+                $onError();
+            }
+
+            $message = null !== $messagePrefix
+                ? \sprintf('%s: `%s`', $messagePrefix, $throwable->getMessage())
+                : $throwable->getMessage();
+
+            throw new MysqlLockException($message, (int)$throwable->getCode(), $throwable);
+        }
     }
 
     protected function buildLockKey(string $lockName, ?string $entityManagerName): string

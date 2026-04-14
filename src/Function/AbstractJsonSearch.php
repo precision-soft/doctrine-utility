@@ -8,9 +8,11 @@ declare(strict_types=1);
 
 namespace PrecisionSoft\Doctrine\Utility\Function;
 
+use Doctrine\DBAL\Platforms\MySQLPlatform;
 use Doctrine\ORM\Query\AST\Functions\FunctionNode;
 use Doctrine\ORM\Query\AST\Node;
 use Doctrine\ORM\Query\Parser;
+use Doctrine\ORM\Query\SqlWalker;
 use PrecisionSoft\Doctrine\Utility\Exception\Exception;
 
 abstract class AbstractJsonSearch extends FunctionNode
@@ -19,6 +21,13 @@ abstract class AbstractJsonSearch extends FunctionNode
     public const MODE_ALL = 'all';
 
     public Node $mode;
+
+    protected function assertMySQLPlatform(SqlWalker $sqlWalker): void
+    {
+        if (false === ($sqlWalker->getConnection()->getDatabasePlatform() instanceof MySQLPlatform)) {
+            throw new Exception(\sprintf('function `%s` is not supported', static::FUNCTION_NAME)); // @phpstan-ignore classConstant.notFound
+        }
+    }
 
     protected function parsePathMode(Parser $parser): void
     {

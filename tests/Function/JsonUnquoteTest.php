@@ -48,9 +48,6 @@ final class JsonUnquoteTest extends TestCase
     public function testGetSqlThrowsOnNonMysqlPlatform(): void
     {
         $sqlWalker = $this->createNonMysqlSqlWalker();
-        $sqlWalker->shouldReceive('walkStringPrimary')
-            ->once()
-            ->andReturn('t0_.data');
 
         $jsonUnquote = $this->createInstance();
         $jsonUnquote->jsonValExpr = Mockery::mock(Node::class);
