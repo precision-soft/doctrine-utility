@@ -24,11 +24,14 @@ class JoinCollection
         return $this->joins;
     }
 
+    /**
+     * @throws Exception if the alias is empty or already present in the collection
+     */
     public function addJoin(Join $join): static
     {
         $alias = $join->getAlias();
 
-        if ('' === $alias) {
+        if (null === $alias || '' === \trim($alias)) {
             throw new Exception('alias cannot be empty');
         }
 

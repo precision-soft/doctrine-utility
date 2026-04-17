@@ -12,6 +12,7 @@ use Doctrine\ORM\Query\AST\Node;
 use Doctrine\ORM\Query\Parser;
 use Doctrine\ORM\Query\SqlWalker;
 use Doctrine\ORM\Query\TokenType;
+use PrecisionSoft\Doctrine\Utility\Exception\Exception;
 
 class JsonUnquote extends AbstractJsonSearch
 {
@@ -19,6 +20,9 @@ class JsonUnquote extends AbstractJsonSearch
 
     public Node $jsonValExpr;
 
+    /**
+     * @throws Exception if the database platform is not MySQL
+     */
     public function getSql(SqlWalker $sqlWalker): string
     {
         $this->assertMySQLPlatform($sqlWalker);

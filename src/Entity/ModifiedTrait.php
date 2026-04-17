@@ -9,6 +9,7 @@ declare(strict_types=1);
 namespace PrecisionSoft\Doctrine\Utility\Entity;
 
 use DateTime;
+use DateTimeZone;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
@@ -17,6 +18,9 @@ use Doctrine\ORM\Mapping as ORM;
  */
 trait ModifiedTrait
 {
+    /**
+     * Null until the entity is first persisted; the database applies CURRENT_TIMESTAMP as default on INSERT.
+     */
     #[ORM\Column(type: Types::DATETIME_MUTABLE, options: ['default' => 'CURRENT_TIMESTAMP'])]
     protected ?DateTime $modified = null;
 
@@ -35,6 +39,6 @@ trait ModifiedTrait
     #[ORM\PreUpdate]
     public function updateModifiedTimestamp(): void
     {
-        $this->modified = new DateTime();
+        $this->modified = new DateTime('now', new DateTimeZone('UTC'));
     }
 }

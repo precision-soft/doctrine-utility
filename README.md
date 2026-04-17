@@ -16,6 +16,7 @@ Any suggestions are welcomed.
 - PHP 8.2+
 - Doctrine ORM 3
 - Doctrine DBAL 4
+- MySQL (all features — DQL functions, MySqlWalker, and MysqlLockService — require MySQL)
 
 ## Installation
 

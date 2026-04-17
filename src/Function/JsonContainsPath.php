@@ -12,6 +12,7 @@ use Doctrine\ORM\Query\AST\Node;
 use Doctrine\ORM\Query\Parser;
 use Doctrine\ORM\Query\SqlWalker;
 use Doctrine\ORM\Query\TokenType;
+use PrecisionSoft\Doctrine\Utility\Exception\Exception;
 
 class JsonContainsPath extends AbstractJsonSearch
 {
@@ -21,6 +22,9 @@ class JsonContainsPath extends AbstractJsonSearch
     /** @var Node[] */
     public array $jsonPaths = [];
 
+    /**
+     * @throws Exception if the database platform is not MySQL
+     */
     public function getSql(SqlWalker $sqlWalker): string
     {
         $this->assertMySQLPlatform($sqlWalker);

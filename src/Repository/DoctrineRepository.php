@@ -10,6 +10,7 @@ namespace PrecisionSoft\Doctrine\Utility\Repository;
 
 use Doctrine\ORM\EntityRepository;
 
+/** @extends EntityRepository<object> */
 class DoctrineRepository extends EntityRepository
 {
     public function hasField(string $fieldName): bool

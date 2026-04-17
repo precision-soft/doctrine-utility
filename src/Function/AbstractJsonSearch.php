@@ -22,6 +22,9 @@ abstract class AbstractJsonSearch extends FunctionNode
 
     public Node $mode;
 
+    /**
+     * @throws Exception if the database platform is not MySQL
+     */
     protected function assertMySQLPlatform(SqlWalker $sqlWalker): void
     {
         if (false === ($sqlWalker->getConnection()->getDatabasePlatform() instanceof MySQLPlatform)) {
@@ -29,6 +32,9 @@ abstract class AbstractJsonSearch extends FunctionNode
         }
     }
 
+    /**
+     * @throws Exception if the mode argument is missing or not 'one'/'all'
+     */
     protected function parsePathMode(Parser $parser): void
     {
         $lexer = $parser->getLexer();

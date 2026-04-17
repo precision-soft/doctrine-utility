@@ -14,6 +14,9 @@ use Doctrine\ORM\Mapping as ORM;
 
 trait CreatedTrait
 {
+    /**
+     * Null until the entity is first persisted; the database applies CURRENT_TIMESTAMP as default on INSERT.
+     */
     #[ORM\Column(type: Types::DATETIME_MUTABLE, options: ['default' => 'CURRENT_TIMESTAMP'])]
     protected ?DateTime $created = null;
 

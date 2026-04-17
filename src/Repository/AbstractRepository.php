@@ -30,6 +30,7 @@ abstract class AbstractRepository
 
     protected ManagerRegistry $managerRegistry;
 
+    /** @return class-string<object> */
     abstract protected function getEntityClass(): string;
 
     public static function getAlias(): string
@@ -50,7 +51,10 @@ abstract class AbstractRepository
         $this->getManager()->refresh($entity);
     }
 
-    /** @param array<string, mixed> $filters */
+    /**
+     * @param array<string, mixed> $filters
+     * @throws Exception if custom filters are present and attachCustomFilters() has not been overridden, or if an invalid join type is encountered
+     */
     protected function attachFilters(
         QueryBuilder $queryBuilder,
         array $filters,
@@ -79,6 +83,7 @@ abstract class AbstractRepository
         return $this->managerRegistry->getManager($this->getManagerName());
     }
 
+    /** @param array<string, mixed> $parameters */
     protected function execute(
         string $query,
         array $parameters = [],
@@ -96,16 +101,26 @@ abstract class AbstractRepository
     protected function getConnection(
         ?string $connectionName = null,
     ): Connection {
-        return $this->managerRegistry->getConnection($connectionName);
+        $connection = $this->managerRegistry->getConnection($connectionName);
+
+        \assert($connection instanceof Connection);
+
+        return $connection;
     }
 
+    /**
+     * @throws Exception if the entity repository is not a DoctrineRepository
+     */
     protected function createQueryBuilder(
         ?string $managerName = null,
     ): QueryBuilder {
         return $this->getDoctrineRepository($managerName)->createQueryBuilder(static::getAlias());
     }
 
-    /** @param array<string, mixed> $filters */
+    /**
+     * @param array<string, mixed> $filters
+     * @throws Exception if the entity repository is not a DoctrineRepository, or if custom filters are present and attachCustomFilters() has not been overridden
+     */
     protected function createQueryBuilderFromFilters(
         array $filters,
         bool $selectJoins = false,
@@ -126,6 +141,7 @@ abstract class AbstractRepository
      * @param array<string, mixed> $filters
      *
      * @return array{0: array<string, mixed>, 1: array<string, mixed>}
+     * @throws Exception if the entity repository is not a DoctrineRepository
      */
     protected function sortFilters(
         array $filters,
@@ -147,16 +163,24 @@ abstract class AbstractRepository
         return [$genericFilters, $customFilters];
     }
 
+    /**
+     * @throws Exception if a join has an unrecognised join type
+     */
     protected function attachJoins(
         QueryBuilder $queryBuilder,
         JoinCollection $joinCollection,
     ): void {
         foreach ($joinCollection->getJoins() as $join) {
+            $alias = $join->getAlias();
+
+            /** @info alias is always non-null here — JoinCollection::addJoin() rejects empty aliases before storing joins */
+            \assert(null !== $alias);
+
             switch ($join->getJoinType()) {
                 case static::JOIN_INNER:
                     $queryBuilder->innerJoin(
                         $join->getJoin(),
-                        $join->getAlias(),
+                        $alias,
                         $join->getConditionType(),
                         $join->getCondition(),
                         $join->getIndexBy(),
@@ -165,7 +189,7 @@ abstract class AbstractRepository
                 case static::JOIN_LEFT:
                     $queryBuilder->leftJoin(
                         $join->getJoin(),
-                        $join->getAlias(),
+                        $alias,
                         $join->getConditionType(),
                         $join->getCondition(),
                         $join->getIndexBy(),
@@ -177,6 +201,9 @@ abstract class AbstractRepository
         }
     }
 
+    /**
+     * @throws Exception if the entity repository is not a DoctrineRepository
+     */
     protected function getDoctrineRepository(
         ?string $managerName = null,
     ): DoctrineRepository {
@@ -202,7 +229,14 @@ abstract class AbstractRepository
         return null;
     }
 
-    /** @param array<string, mixed> $filters */
+    /**
+     * Override this method to handle custom (non-entity-field) filters and build the join collection.
+     * The default implementation throws intentionally — it acts as a soft-abstract to signal
+     * that custom filters must be handled by the subclass when they are present.
+     *
+     * @param array<string, mixed> $filters
+     * @throws Exception if the method has not been overridden
+     */
     protected function attachCustomFilters(
         QueryBuilder $queryBuilder,
         array $filters,
@@ -230,11 +264,15 @@ abstract class AbstractRepository
         return null;
     }
 
-    /** @param array<string, mixed> $filters */
+    /**
+     * @param array<string, mixed> $filters
+     * @throws Exception if an empty array filter is encountered and the behavior is set to ThrowException
+     */
     protected function attachGenericFilters(
         QueryBuilder $queryBuilder,
         array $filters,
     ): void {
+        /** @info filter names are interpolated into DQL but cannot be user-supplied: sortFilters() only passes keys here after hasField() confirms them as mapped entity fields */
         foreach ($filters as $filterName => $filterValue) {
             if (null === $filterValue) {
                 $queryBuilder->andWhere(static::getAlias() . ".{$filterName} IS NULL");
@@ -257,6 +295,9 @@ abstract class AbstractRepository
         }
     }
 
+    /**
+     * @throws Exception if the empty array filter behavior is set to ThrowException
+     */
     protected function handleEmptyArrayFilter(
         QueryBuilder $queryBuilder,
         string $filterName,
@@ -285,6 +326,7 @@ abstract class AbstractRepository
                     ],
                 );
 
+                /** @info always-false literal comparison by design — ensures the filter matches nothing without binding parameters, keeping the name visible in query logs */
                 $queryBuilder->andWhere(
                     \sprintf("'%s' = '%s-emptyFilter'", $filterName, $filterName),
                 );

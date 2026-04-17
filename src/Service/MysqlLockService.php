@@ -33,6 +33,9 @@ class MysqlLockService
         $this->managerRegistry = $managerRegistry;
     }
 
+    /**
+     * @throws MysqlLockException if the lock status cannot be determined
+     */
     public function hasLock(string $lockName, ?string $entityManagerName = null): bool
     {
         return $this->wrapException(function () use ($lockName, $entityManagerName): bool {
@@ -52,6 +55,9 @@ class MysqlLockService
         });
     }
 
+    /**
+     * @throws MysqlLockException if the lock cannot be acquired or times out
+     */
     public function acquire(
         string $lockName,
         int $timeout = 0,
@@ -109,6 +115,9 @@ class MysqlLockService
         return $this;
     }
 
+    /**
+     * @throws MysqlLockException if $throwException is true and the lock cannot be released
+     */
     public function release(
         string $lockName,
         ?string $entityManagerName = null,
@@ -158,7 +167,7 @@ class MysqlLockService
             unset($this->locks[$lockKey]);
 
             if (true === $throwException) {
-                if (true === $throwable instanceof MysqlLockException) {
+                if (true === ($throwable instanceof MysqlLockException)) {
                     throw $throwable;
                 }
 
@@ -173,7 +182,10 @@ class MysqlLockService
         return $this;
     }
 
-    /** @param list<string> $lockNames */
+    /**
+     * @param list<string> $lockNames
+     * @throws MysqlLockException if any lock cannot be acquired; already-acquired locks are released on failure
+     */
     public function acquireLocks(array $lockNames, int $timeout = 0, ?string $entityManagerName = null): self
     {
         \sort($lockNames);
@@ -189,7 +201,10 @@ class MysqlLockService
         return $this;
     }
 
-    /** @param list<string>|null $lockNames */
+    /**
+     * @param list<string>|null $lockNames null releases all currently held locks
+     * @throws MysqlLockException if $throwException is true and any lock cannot be released
+     */
     public function releaseLocks(
         ?array $lockNames = null,
         ?string $entityManagerName = null,
@@ -222,6 +237,31 @@ class MysqlLockService
         return $this;
     }
 
+    protected function buildLockKey(string $lockName, ?string $entityManagerName): string
+    {
+        return $lockName . '@@' . ($entityManagerName ?? 'default');
+    }
+
+    protected function prepareLockName(string $lockName, EntityManager $entityManager): string
+    {
+        if (64 < \strlen($lockName)) {
+            $lockName = \substr($lockName, 0, 10) . '>>' . \md5($lockName) . '<<' . \substr($lockName, -10);
+        }
+
+        return $entityManager->getConnection()->quote($lockName);
+    }
+
+    protected function getEntityManager(?string $entityManagerName): EntityManager
+    {
+        $entityManager = $this->managerRegistry->getManager($entityManagerName);
+
+        if (false === ($entityManager instanceof EntityManager)) {
+            throw new MysqlLockException(\sprintf('manager "%s" is not an instance of EntityManager', $entityManagerName));
+        }
+
+        return $entityManager;
+    }
+
     private function wrapException(callable $callback, ?string $messagePrefix = null, ?callable $onError = null): mixed
     {
         try {
@@ -243,30 +283,5 @@ class MysqlLockService
 
             throw new MysqlLockException($message, (int)$throwable->getCode(), $throwable);
         }
-    }
-
-    protected function buildLockKey(string $lockName, ?string $entityManagerName): string
-    {
-        return $lockName . '@@' . ($entityManagerName ?? 'default');
-    }
-
-    protected function prepareLockName(string $lockName, EntityManager $entityManager): string
-    {
-        if (64 < \strlen($lockName)) {
-            $lockName = \substr($lockName, 0, 10) . '>>' . \md5($lockName) . '<<' . \substr($lockName, -10);
-        }
-
-        return $entityManager->getConnection()->quote($lockName);
-    }
-
-    protected function getEntityManager(?string $entityManagerName): EntityManager
-    {
-        $entityManager = $this->managerRegistry->getManager($entityManagerName);
-
-        if (false === $entityManager instanceof EntityManager) {
-            throw new MysqlLockException(\sprintf('Manager "%s" is not an instance of EntityManager.', $entityManagerName));
-        }
-
-        return $entityManager;
     }
 }

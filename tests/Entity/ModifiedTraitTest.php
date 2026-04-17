@@ -83,6 +83,16 @@ final class ModifiedTraitTest extends AbstractTestCase
         static::assertLessThanOrEqual($afterDateTime, $modifiedDateTime);
     }
 
+    public function testUpdateModifiedTimestampUsesUtcTimezone(): void
+    {
+        $this->entity->updateModifiedTimestamp();
+
+        $modifiedDateTime = $this->entity->getModified();
+
+        static::assertInstanceOf(DateTime::class, $modifiedDateTime);
+        static::assertSame('UTC', $modifiedDateTime->getTimezone()->getName());
+    }
+
     public function testUpdateModifiedTimestampOverwritesPreviousValue(): void
     {
         $oldDateTime = new DateTime('2020-01-01');

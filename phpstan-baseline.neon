@@ -1,60 +1,6 @@
 parameters:
 	ignoreErrors:
 		-
-			message: '#^Property PrecisionSoft\\Doctrine\\Utility\\Function\\DateFormat\:\:\$firstDateExpression \(Doctrine\\ORM\\Query\\AST\\Node\) does not accept Doctrine\\ORM\\Query\\AST\\Node\|string\.$#'
-			identifier: assign.propertyType
-			count: 1
-			path: src/Function/DateFormat.php
-
-		-
-			message: '#^Property PrecisionSoft\\Doctrine\\Utility\\Function\\DateFormat\:\:\$secondDateExpression \(Doctrine\\ORM\\Query\\AST\\Node\) does not accept Doctrine\\ORM\\Query\\AST\\Node\|string\.$#'
-			identifier: assign.propertyType
-			count: 1
-			path: src/Function/DateFormat.php
-
-		-
-			message: '#^Method PrecisionSoft\\Doctrine\\Utility\\Repository\\AbstractRepository\:\:execute\(\) has parameter \$parameters with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Repository/AbstractRepository.php
-
-		-
-			message: '#^Method PrecisionSoft\\Doctrine\\Utility\\Repository\\AbstractRepository\:\:getConnection\(\) should return Doctrine\\DBAL\\Connection but returns object\.$#'
-			identifier: return.type
-			count: 1
-			path: src/Repository/AbstractRepository.php
-
-		-
-			message: '#^Parameter \#1 \$persistentObject of method Doctrine\\Persistence\\ManagerRegistry\:\:getRepository\(\) expects class\-string\<object\>, string given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Repository/AbstractRepository.php
-
-		-
-			message: '#^Parameter \#2 \$alias of method Doctrine\\ORM\\QueryBuilder\:\:innerJoin\(\) expects string, string\|null given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Repository/AbstractRepository.php
-
-		-
-			message: '#^Parameter \#2 \$alias of method Doctrine\\ORM\\QueryBuilder\:\:leftJoin\(\) expects string, string\|null given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Repository/AbstractRepository.php
-
-		-
-			message: '#^Unable to resolve the template type T in call to method Doctrine\\Persistence\\ManagerRegistry\:\:getRepository\(\)$#'
-			identifier: argument.templateType
-			count: 1
-			path: src/Repository/AbstractRepository.php
-
-		-
-			message: '#^Class PrecisionSoft\\Doctrine\\Utility\\Repository\\DoctrineRepository extends generic class Doctrine\\ORM\\EntityRepository but does not specify its types\: T$#'
-			identifier: missingType.generics
-			count: 1
-			path: src/Repository/DoctrineRepository.php
-
-		-
 			message: '#^Call to an undefined method object\:\:getCreated\(\)\.$#'
 			identifier: method.notFound
 			count: 6
@@ -69,7 +15,7 @@ parameters:
 		-
 			message: '#^Call to an undefined method object\:\:getModified\(\)\.$#'
 			identifier: method.notFound
-			count: 7
+			count: 8
 			path: tests/Entity/ModifiedTraitTest.php
 
 		-
@@ -81,7 +27,7 @@ parameters:
 		-
 			message: '#^Call to an undefined method object\:\:updateModifiedTimestamp\(\)\.$#'
 			identifier: method.notFound
-			count: 2
+			count: 3
 			path: tests/Entity/ModifiedTraitTest.php
 
 		-
@@ -99,17 +45,17 @@ parameters:
 		-
 			message: '#^Parameter \#1 \$sqlWalker of method PrecisionSoft\\Doctrine\\Utility\\Function\\DateFormat\:\:getSql\(\) expects Doctrine\\ORM\\Query\\SqlWalker, Doctrine\\ORM\\Query\\SqlWalker\|Mockery\\MockInterface given\.$#'
 			identifier: argument.type
-			count: 2
+			count: 3
 			path: tests/Function/DateFormatTest.php
 
 		-
-			message: '#^Property PrecisionSoft\\Doctrine\\Utility\\Function\\DateFormat\:\:\$firstDateExpression \(Doctrine\\ORM\\Query\\AST\\Node\) does not accept Mockery\\MockInterface\.$#'
+			message: '#^Property PrecisionSoft\\Doctrine\\Utility\\Function\\DateFormat\:\:\$firstDateExpression \(Doctrine\\ORM\\Query\\AST\\Node\|string\) does not accept Mockery\\MockInterface\.$#'
 			identifier: assign.propertyType
 			count: 2
 			path: tests/Function/DateFormatTest.php
 
 		-
-			message: '#^Property PrecisionSoft\\Doctrine\\Utility\\Function\\DateFormat\:\:\$secondDateExpression \(Doctrine\\ORM\\Query\\AST\\Node\) does not accept Mockery\\MockInterface\.$#'
+			message: '#^Property PrecisionSoft\\Doctrine\\Utility\\Function\\DateFormat\:\:\$secondDateExpression \(Doctrine\\ORM\\Query\\AST\\Node\|string\) does not accept Mockery\\MockInterface\.$#'
 			identifier: assign.propertyType
 			count: 2
 			path: tests/Function/DateFormatTest.php

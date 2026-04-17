@@ -52,6 +52,19 @@ final class DateFormatTest extends TestCase
         static::assertSame("DATE_FORMAT(t0_.created_at, '%Y-%m')", $sqlDeclaration);
     }
 
+    public function testGetSqlReturnsFormattedStringWithStringExpressions(): void
+    {
+        $sqlWalker = $this->createMysqlSqlWalker();
+
+        $dateFormat = $this->createInstance();
+        $dateFormat->firstDateExpression = 't0_.created_at';
+        $dateFormat->secondDateExpression = "'%Y-%m'";
+
+        $sqlDeclaration = $dateFormat->getSql($sqlWalker);
+
+        static::assertSame("DATE_FORMAT(t0_.created_at, '%Y-%m')", $sqlDeclaration);
+    }
+
     public function testGetSqlThrowsOnNonMysqlPlatform(): void
     {
         $sqlWalker = $this->createNonMysqlSqlWalker();

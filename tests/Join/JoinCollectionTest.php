@@ -52,6 +52,28 @@ final class JoinCollectionTest extends TestCase
         static::assertSame($leftJoin, $joins['e2']);
     }
 
+    public function testAddJoinThrowsOnEmptyAlias(): void
+    {
+        $joinCollection = new JoinCollection();
+        $join = new Join(Join::INNER_JOIN, 'entity', '');
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('alias cannot be empty');
+
+        $joinCollection->addJoin($join);
+    }
+
+    public function testAddJoinThrowsOnWhitespaceOnlyAlias(): void
+    {
+        $joinCollection = new JoinCollection();
+        $join = new Join(Join::INNER_JOIN, 'entity', '   ');
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('alias cannot be empty');
+
+        $joinCollection->addJoin($join);
+    }
+
     public function testAddJoinThrowsOnDuplicateAlias(): void
     {
         $joinCollection = new JoinCollection();
