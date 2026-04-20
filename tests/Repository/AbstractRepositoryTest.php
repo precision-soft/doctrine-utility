@@ -27,6 +27,8 @@ use PrecisionSoft\Symfony\Phpunit\MockDto;
 use PrecisionSoft\Symfony\Phpunit\TestCase\AbstractTestCase;
 use Psr\Log\LoggerInterface;
 use ReflectionMethod;
+use ReflectionProperty;
+use stdClass;
 
 /**
  * @internal
@@ -78,6 +80,49 @@ final class AbstractRepositoryTest extends AbstractTestCase
         $this->expectExceptionMessage('invalid join type `INVALID_JOIN`');
 
         $reflectionMethod->invoke($abstractRepositoryMock, $queryBuilderMock, $joinCollection);
+    }
+
+    public function testAttachJoinsThrowsExceptionOnNullAlias(): void
+    {
+        $reflectionMethod = new ReflectionMethod(AbstractRepository::class, 'attachJoins');
+
+        $abstractRepositoryMock = $this->get(AbstractRepository::class);
+
+        $queryBuilderMock = Mockery::mock(QueryBuilder::class);
+
+        $joinWithNullAlias = new Join(Join::INNER_JOIN, 'entity');
+        $joinCollection = new JoinCollection();
+
+        /** @info bypass JoinCollection::addJoin() which rejects null aliases; we want to verify attachJoins() also guards at runtime */
+        $reflectionProperty = new ReflectionProperty(JoinCollection::class, 'joins');
+        $reflectionProperty->setValue($joinCollection, ['x' => $joinWithNullAlias]);
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('join alias must not be null');
+
+        $reflectionMethod->invoke($abstractRepositoryMock, $queryBuilderMock, $joinCollection);
+    }
+
+    public function testGetConnectionThrowsWhenRegistryReturnsWrongConnectionType(): void
+    {
+        $reflectionMethod = new ReflectionMethod(AbstractRepository::class, 'getConnection');
+
+        $abstractRepositoryMock = $this->get(AbstractRepository::class);
+
+        $notADbalConnection = new stdClass();
+
+        $managerRegistryMock = Mockery::mock(ManagerRegistry::class);
+        $managerRegistryMock->shouldReceive('getConnection')
+            ->with(null)
+            ->once()
+            ->andReturn($notADbalConnection);
+
+        $abstractRepositoryMock->setManagerRegistry($managerRegistryMock);
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('connection is not an instance of Connection');
+
+        $reflectionMethod->invoke($abstractRepositoryMock);
     }
 
     public function testGetDoctrineRepositoryThrowsExceptionOnWrongClass(): void

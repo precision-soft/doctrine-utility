@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v4.1.3] - 2026-04-20 - Harden assertions and expand PHPDoc coverage
+
+### Added
+
+- `AbstractRepository` — `@throws` annotations added to every protected method (`attachFilters`, `createQueryBuilder`, `createQueryBuilderFromFilters`, `sortFilters`, `attachJoins`, `getDoctrineRepository`, `attachCustomFilters`, `attachGenericFilters`, `handleEmptyArrayFilter`)
+- `AbstractRepository::getEntityClass()` — `@return class-string<object>` PHPDoc
+- `AbstractRepository::execute()` — `@param array<string, mixed> $parameters` PHPDoc
+- `AbstractRepository::attachGenericFilters()` / `handleEmptyArrayFilter()` — `@info` safety notes documenting the interpolated DQL paths (filter names are pre-validated by `sortFilters()` against entity metadata; `MatchNone` emits a literal always-false comparison by design)
+- `MysqlLockService` — `@throws` documentation on public methods
+- `DateFormat`, `JsonContains`, `JsonContainsPath`, `JsonExtract`, `JsonSearch`, `JsonUnquote` — `@throws` annotations on `getSql()` / `parse()`
+- `tests/Entity/ModifiedTraitTest.php` — `testUpdateModifiedTimestampUsesUtcTimezone` verifies the timezone name on the stored `DateTime`
+- `tests/Join/JoinCollectionTest.php` — new cases for whitespace-only alias rejection
+- `tests/Function/DateFormatTest.php` — new cases covering the DQL function pipeline
+
+### Changed
+
+- `AbstractRepository::getConnection()` — now throws `Exception` when `ManagerRegistry::getConnection()` returns a non-`Connection` instance (replaces `\assert()` narrowing, which is a no-op under `zend.assertions=-1` in production)
+- `AbstractRepository::attachJoins()` — now throws `Exception` when `Join::getAlias()` returns null (replaces `\assert()` narrowing, same reason)
+- `phpstan-baseline.neon` — trimmed by ~64 lines after the new PHPDoc coverage resolved previously baselined errors
+
+### Fixed
+
+- `JoinCollection::addJoin()` — non-empty aliases are now trimmed before storage so padded input (`'  foo  '`) normalizes to `'foo'`
+
 ## [v4.1.2] - 2026-04-17
 
 ### Added
@@ -321,7 +345,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial public release of `precision-soft/doctrine-utility`
 
-[Unreleased]: https://github.com/precision-soft/doctrine-utility/compare/v4.1.2...HEAD
+[Unreleased]: https://github.com/precision-soft/doctrine-utility/compare/v4.1.3...HEAD
+
+[v4.1.3]: https://github.com/precision-soft/doctrine-utility/compare/v4.1.2...v4.1.3
 
 [v4.1.2]: https://github.com/precision-soft/doctrine-utility/compare/v4.1.1...v4.1.2
 

@@ -35,6 +35,8 @@ class JoinCollection
             throw new Exception('alias cannot be empty');
         }
 
+        $alias = \trim($alias);
+
         if (true === isset($this->joins[$alias])) {
             throw new Exception(
                 \sprintf('duplicate alias `%s` in join collection', $alias),

@@ -98,12 +98,17 @@ abstract class AbstractRepository
         return $stmt->executeQuery();
     }
 
+    /**
+     * @throws Exception if the ManagerRegistry returns a connection that is not a Doctrine\DBAL\Connection instance
+     */
     protected function getConnection(
         ?string $connectionName = null,
     ): Connection {
         $connection = $this->managerRegistry->getConnection($connectionName);
 
-        \assert($connection instanceof Connection);
+        if (false === ($connection instanceof Connection)) {
+            throw new Exception('connection is not an instance of Connection');
+        }
 
         return $connection;
     }
@@ -164,7 +169,7 @@ abstract class AbstractRepository
     }
 
     /**
-     * @throws Exception if a join has an unrecognised join type
+     * @throws Exception if a join has an unrecognised join type or a null alias
      */
     protected function attachJoins(
         QueryBuilder $queryBuilder,
@@ -173,8 +178,9 @@ abstract class AbstractRepository
         foreach ($joinCollection->getJoins() as $join) {
             $alias = $join->getAlias();
 
-            /** @info alias is always non-null here — JoinCollection::addJoin() rejects empty aliases before storing joins */
-            \assert(null !== $alias);
+            if (null === $alias) {
+                throw new Exception('join alias must not be null');
+            }
 
             switch ($join->getJoinType()) {
                 case static::JOIN_INNER:

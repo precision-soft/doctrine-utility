@@ -74,6 +74,17 @@ final class JoinCollectionTest extends TestCase
         $joinCollection->addJoin($join);
     }
 
+    public function testAddJoinTrimsWhitespacePaddedAlias(): void
+    {
+        $joinCollection = new JoinCollection();
+        $join = new Join(Join::INNER_JOIN, 'entity', '  foo  ');
+
+        $joinCollection->addJoin($join);
+
+        static::assertSame(['foo'], $joinCollection->getAliases());
+        static::assertSame($join, $joinCollection->getJoins()['foo']);
+    }
+
     public function testAddJoinThrowsOnDuplicateAlias(): void
     {
         $joinCollection = new JoinCollection();
