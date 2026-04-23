@@ -252,7 +252,7 @@ class MysqlLockService
     }
 
     /**
-     * @throws MysqlLockException if the registered manager is not a Doctrine\ORM\EntityManager instance
+     * @throws MysqlLockException if the registered manager is not an EntityManager instance
      */
     protected function getEntityManager(?string $entityManagerName): EntityManager
     {

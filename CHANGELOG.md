@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v4.1.5] - 2026-04-23 - Remove redundant property comments and tighten docblock FQN references
+
+### Changed
+
+- `AbstractRepository::execute()` — `@throws` description: `Doctrine\DBAL\Connection` → `Connection` (class already imported)
+- `AbstractRepository::getConnection()` — `@throws` description: `Doctrine\DBAL\Connection` → `Connection` (class already imported)
+- `MysqlLockService::getEntityManager()` — `@throws` description: `Doctrine\ORM\EntityManager` → `EntityManager` (class already imported)
+- `CreatedTrait::$created` — removed property docblock; the nullable default and `'default' => 'CURRENT_TIMESTAMP'` column option make it redundant
+- `ModifiedTrait::$modified` — removed property docblock; same rationale as `CreatedTrait`
+
 ## [v4.1.4] - 2026-04-23 - Widen late static binding and open library surface for subclasses
 
 ### Changed
@@ -373,7 +383,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `MySqlWalker` — custom SQL walker adding `USE INDEX` / `IGNORE INDEX` / `FORCE INDEX` / `FOR UPDATE` hints
 - Dev infrastructure: Docker container, git hooks (pre-commit with php-cs-fixer + lint + PHPUnit), PHP-CS-Fixer configuration, PHPUnit 9 test scaffolding
 
-[Unreleased]: https://github.com/precision-soft/doctrine-utility/compare/v4.1.4...HEAD
+[Unreleased]: https://github.com/precision-soft/doctrine-utility/compare/v4.1.5...HEAD
+
+[v4.1.5]: https://github.com/precision-soft/doctrine-utility/compare/v4.1.4...v4.1.5
 
 [v4.1.4]: https://github.com/precision-soft/doctrine-utility/compare/v4.1.3...v4.1.4
 

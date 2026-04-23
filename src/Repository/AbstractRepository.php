@@ -85,7 +85,7 @@ abstract class AbstractRepository
 
     /**
      * @param array<string, mixed> $parameters
-     * @throws Exception if the ManagerRegistry returns a connection that is not a Doctrine\DBAL\Connection instance
+     * @throws Exception if the ManagerRegistry returns a connection that is not a Connection instance
      */
     protected function execute(
         string $query,
@@ -102,7 +102,7 @@ abstract class AbstractRepository
     }
 
     /**
-     * @throws Exception if the ManagerRegistry returns a connection that is not a Doctrine\DBAL\Connection instance
+     * @throws Exception if the ManagerRegistry returns a connection that is not a Connection instance
      */
     protected function getConnection(
         ?string $connectionName = null,
