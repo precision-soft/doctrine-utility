@@ -50,6 +50,9 @@ class JsonSearch extends AbstractJsonSearch
         return \sprintf('%s(%s, %s, %s)', static::FUNCTION_NAME, $jsonDocumentSql, $modeSql, $searchArgsSql);
     }
 
+    /**
+     * @throws Exception if the mode argument is missing or not 'one'/'all'
+     */
     public function parse(Parser $parser): void
     {
         $parser->match(TokenType::T_IDENTIFIER);

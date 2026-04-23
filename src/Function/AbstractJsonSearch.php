@@ -47,7 +47,7 @@ abstract class AbstractJsonSearch extends FunctionNode
 
         $lookaheadValue = (string)$lexer->lookahead->value;
 
-        if (0 !== \strcasecmp(self::MODE_ONE, $lookaheadValue) && 0 !== \strcasecmp(self::MODE_ALL, $lookaheadValue)) {
+        if (0 !== \strcasecmp(static::MODE_ONE, $lookaheadValue) && 0 !== \strcasecmp(static::MODE_ALL, $lookaheadValue)) {
             throw new Exception(
                 \sprintf('mode `%s` is not supported by `%s`', $lookaheadValue, static::class),
             );

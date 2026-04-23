@@ -35,11 +35,11 @@ abstract class AbstractRepository
 
     public static function getAlias(): string
     {
-        return self::$aliasCache[static::class] ??= \lcfirst((new ReflectionClass(static::class))->getShortName());
+        return static::$aliasCache[static::class] ??= \lcfirst((new ReflectionClass(static::class))->getShortName());
     }
 
     /** @internal used by the dependency injection system */
-    public function setManagerRegistry(ManagerRegistry $managerRegistry): self
+    public function setManagerRegistry(ManagerRegistry $managerRegistry): static
     {
         $this->managerRegistry = $managerRegistry;
 
@@ -62,16 +62,16 @@ abstract class AbstractRepository
     ): ?JoinCollection {
         [$genericFilters, $customFilters] = $this->sortFilters($filters, $managerName);
 
-        if (0 < \count($genericFilters)) {
+        if (\count($genericFilters) > 0) {
             $this->attachGenericFilters($queryBuilder, $genericFilters);
         }
 
         $joinCollection = null;
-        if (0 < \count($customFilters)) {
+        if (\count($customFilters) > 0) {
             $joinCollection = $this->attachCustomFilters($queryBuilder, $customFilters);
         }
 
-        if (null !== $joinCollection && 0 < \count($joinCollection->getJoins())) {
+        if (null !== $joinCollection && \count($joinCollection->getJoins()) > 0) {
             $this->attachJoins($queryBuilder, $joinCollection);
         }
 
@@ -83,19 +83,22 @@ abstract class AbstractRepository
         return $this->managerRegistry->getManager($this->getManagerName());
     }
 
-    /** @param array<string, mixed> $parameters */
+    /**
+     * @param array<string, mixed> $parameters
+     * @throws Exception if the ManagerRegistry returns a connection that is not a Doctrine\DBAL\Connection instance
+     */
     protected function execute(
         string $query,
         array $parameters = [],
         ?string $connectionName = null,
     ): Result {
-        $stmt = $this->getConnection($connectionName)->prepare($query);
+        $statement = $this->getConnection($connectionName)->prepare($query);
 
         foreach ($parameters as $parameterKey => $parameterValue) {
-            $stmt->bindValue($parameterKey, $parameterValue);
+            $statement->bindValue($parameterKey, $parameterValue);
         }
 
-        return $stmt->executeQuery();
+        return $statement->executeQuery();
     }
 
     /**
@@ -248,7 +251,7 @@ abstract class AbstractRepository
         array $filters,
     ): JoinCollection {
         throw new Exception(
-            \sprintf('overwrite `%s` in `%s`', __METHOD__, static::class),
+            \sprintf('override `%s` in `%s`', __METHOD__, static::class),
         );
     }
 

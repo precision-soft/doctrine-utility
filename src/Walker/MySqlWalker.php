@@ -27,13 +27,16 @@ class MySqlWalker extends SqlWalker
     protected const FROM_CLAUSE_PATTERN = '/(\s+FROM\s+[`\w\.]+\s+\w*)/';
     protected const IDENTIFIER_PATTERN = '/^[a-zA-Z_][a-zA-Z0-9_]*(,\s*[a-zA-Z_][a-zA-Z0-9_]*)*$/';
 
+    /**
+     * @throws Exception if preg_replace fails on the SQL fragment
+     */
     public function walkFromClause(mixed $fromClause): string
     {
         $fromClauseSql = parent::walkFromClause($fromClause);
 
-        $fromClauseSql = $this->applyIndexHint($fromClauseSql, self::FROM_CLAUSE_PATTERN, static::HINT_USE_INDEX, 'USE INDEX');
-        $fromClauseSql = $this->applyIndexHint($fromClauseSql, self::FROM_CLAUSE_PATTERN, static::HINT_IGNORE_INDEX, 'IGNORE INDEX');
-        $fromClauseSql = $this->applyIndexHint($fromClauseSql, self::FROM_CLAUSE_PATTERN, static::HINT_FORCE_INDEX, 'FORCE INDEX');
+        $fromClauseSql = $this->applyIndexHint($fromClauseSql, static::FROM_CLAUSE_PATTERN, static::HINT_USE_INDEX, 'USE INDEX');
+        $fromClauseSql = $this->applyIndexHint($fromClauseSql, static::FROM_CLAUSE_PATTERN, static::HINT_IGNORE_INDEX, 'IGNORE INDEX');
+        $fromClauseSql = $this->applyIndexHint($fromClauseSql, static::FROM_CLAUSE_PATTERN, static::HINT_FORCE_INDEX, 'FORCE INDEX');
 
         return $fromClauseSql;
     }
@@ -42,7 +45,7 @@ class MySqlWalker extends SqlWalker
     {
         $whereClauseSql = parent::walkWhereClause($whereClause);
 
-        $selectForUpdate = $this->getQuery()->getHint(self::HINT_SELECT_FOR_UPDATE);
+        $selectForUpdate = $this->getQuery()->getHint(static::HINT_SELECT_FOR_UPDATE);
         if (true === $selectForUpdate) {
             $whereClauseSql .= ' FOR UPDATE';
         }
@@ -50,6 +53,9 @@ class MySqlWalker extends SqlWalker
         return $whereClauseSql;
     }
 
+    /**
+     * @throws Exception if the ignore-index-on-join hint has invalid parameters or if preg_replace fails
+     */
     public function walkJoinAssociationDeclaration(
         mixed $joinAssociationDeclaration,
         mixed $joinType = Join::JOIN_TYPE_INNER,
@@ -86,6 +92,9 @@ class MySqlWalker extends SqlWalker
         return $joinDeclarationSql;
     }
 
+    /**
+     * @throws Exception if the identifier is invalid or if preg_replace fails
+     */
     protected function applyIndexHint(string $sqlFragment, string $regex, string $hintName, string $indexType): string
     {
         $indexName = $this->getQuery()->getHint($hintName);
@@ -105,9 +114,12 @@ class MySqlWalker extends SqlWalker
         return $replacedSqlFragment;
     }
 
+    /**
+     * @throws Exception if the identifier does not match the allowed pattern
+     */
     protected function validateIdentifier(string $identifier): void
     {
-        if (1 !== \preg_match(self::IDENTIFIER_PATTERN, $identifier)) {
+        if (1 !== \preg_match(static::IDENTIFIER_PATTERN, $identifier)) {
             throw new Exception(
                 \sprintf('invalid identifier `%s`', $identifier),
             );

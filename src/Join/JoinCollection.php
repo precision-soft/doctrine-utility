@@ -14,7 +14,7 @@ use PrecisionSoft\Doctrine\Utility\Exception\Exception;
 class JoinCollection
 {
     /** @var Join[] */
-    private array $joins = [];
+    protected array $joins = [];
 
     /**
      * @return Join[]
@@ -29,13 +29,11 @@ class JoinCollection
      */
     public function addJoin(Join $join): static
     {
-        $alias = $join->getAlias();
+        $alias = \trim((string)$join->getAlias());
 
-        if (null === $alias || '' === \trim($alias)) {
+        if ('' === $alias) {
             throw new Exception('alias cannot be empty');
         }
-
-        $alias = \trim($alias);
 
         if (true === isset($this->joins[$alias])) {
             throw new Exception(

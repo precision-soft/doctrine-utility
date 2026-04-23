@@ -26,7 +26,7 @@ class MysqlLockService
      */
     protected array $locks = [];
 
-    private ManagerRegistry $managerRegistry;
+    protected ManagerRegistry $managerRegistry;
 
     public function __construct(ManagerRegistry $managerRegistry)
     {
@@ -51,7 +51,7 @@ class MysqlLockService
                 throw new MysqlLockException('failed to check lock status');
             }
 
-            return self::IS_FREE_LOCK_FREE !== (int)$lockStatusRow['lockIsFree'];
+            return static::IS_FREE_LOCK_FREE !== (int)$lockStatusRow['lockIsFree'];
         });
     }
 
@@ -63,7 +63,7 @@ class MysqlLockService
         int $timeout = 0,
         ?string $entityManagerName = null,
         bool $forceRefresh = false,
-    ): self {
+    ): static {
         $lockKey = $this->buildLockKey($lockName, $entityManagerName);
 
         if (false === $forceRefresh && true === isset($this->locks[$lockKey])) {
@@ -90,7 +90,7 @@ class MysqlLockService
             }
 
             switch (true) {
-                case self::GET_LOCK_SUCCESS === $lockAcquired:
+                case static::GET_LOCK_SUCCESS === $lockAcquired:
                     if (true === isset($this->locks[$lockKey])) {
                         $this->locks[$lockKey]['preparedLockName'] = $preparedLockName;
                     } else {
@@ -105,7 +105,7 @@ class MysqlLockService
                     ++$this->locks[$lockKey]['count'];
 
                     break;
-                case self::GET_LOCK_TIMEOUT === $lockAcquired:
+                case static::GET_LOCK_TIMEOUT === $lockAcquired:
                     throw new MysqlLockException('another operation with the same id is already in progress');
                 default:
                     throw new MysqlLockException('failed to acquire lock: unexpected response');
@@ -122,7 +122,7 @@ class MysqlLockService
         string $lockName,
         ?string $entityManagerName = null,
         bool $throwException = false,
-    ): self {
+    ): static {
         $lockKey = $this->buildLockKey($lockName, $entityManagerName);
 
         try {
@@ -134,7 +134,7 @@ class MysqlLockService
 
             --$this->locks[$lockKey]['count'];
 
-            if (0 < $this->locks[$lockKey]['count']) {
+            if ($this->locks[$lockKey]['count'] > 0) {
                 return $this;
             }
 
@@ -154,11 +154,11 @@ class MysqlLockService
             }
 
             switch ((int)$lockReleased) {
-                case self::RELEASE_LOCK_SUCCESS:
+                case static::RELEASE_LOCK_SUCCESS:
                     unset($this->locks[$lockKey]);
 
                     break;
-                case self::RELEASE_LOCK_NOT_OWNED:
+                case static::RELEASE_LOCK_NOT_OWNED:
                     throw new MysqlLockException('lock was not established by this thread');
                 default:
                     throw new MysqlLockException('failed to release lock: unexpected response');
@@ -186,7 +186,7 @@ class MysqlLockService
      * @param list<string> $lockNames
      * @throws MysqlLockException if any lock cannot be acquired; already-acquired locks are released on failure
      */
-    public function acquireLocks(array $lockNames, int $timeout = 0, ?string $entityManagerName = null): self
+    public function acquireLocks(array $lockNames, int $timeout = 0, ?string $entityManagerName = null): static
     {
         \sort($lockNames);
 
@@ -209,7 +209,7 @@ class MysqlLockService
         ?array $lockNames = null,
         ?string $entityManagerName = null,
         bool $throwException = false,
-    ): self {
+    ): static {
         if (null === $lockNames) {
             $locksToRelease = $this->locks;
 
@@ -244,13 +244,16 @@ class MysqlLockService
 
     protected function prepareLockName(string $lockName, EntityManager $entityManager): string
     {
-        if (64 < \strlen($lockName)) {
+        if (\strlen($lockName) > 64) {
             $lockName = \substr($lockName, 0, 10) . '>>' . \md5($lockName) . '<<' . \substr($lockName, -10);
         }
 
         return $entityManager->getConnection()->quote($lockName);
     }
 
+    /**
+     * @throws MysqlLockException if the registered manager is not a Doctrine\ORM\EntityManager instance
+     */
     protected function getEntityManager(?string $entityManagerName): EntityManager
     {
         $entityManager = $this->managerRegistry->getManager($entityManagerName);
@@ -262,7 +265,10 @@ class MysqlLockService
         return $entityManager;
     }
 
-    private function wrapException(callable $callback, ?string $messagePrefix = null, ?callable $onError = null): mixed
+    /**
+     * @throws MysqlLockException if the callback throws any Throwable; onError runs before rethrow
+     */
+    protected function wrapException(callable $callback, ?string $messagePrefix = null, ?callable $onError = null): mixed
     {
         try {
             return $callback();

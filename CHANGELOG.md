@@ -7,7 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v4.1.4] - 2026-04-22 - Widen late static binding and open library surface for subclasses
+
+### Changed
+
+- `AbstractRepository::getAlias()` — `self::$aliasCache` → `static::$aliasCache`; follow-up to v4.1.0 widening (the property is `protected static`, so the v4.0.4 `private static` constraint that forced `self::` no longer applies)
+- `MySqlWalker::walkFromClause()` — `self::FROM_CLAUSE_PATTERN` → `static::FROM_CLAUSE_PATTERN` on three call sites
+- `MySqlWalker::walkWhereClause()` — `self::HINT_SELECT_FOR_UPDATE` → `static::HINT_SELECT_FOR_UPDATE`
+- `MySqlWalker::validateIdentifier()` — `self::IDENTIFIER_PATTERN` → `static::IDENTIFIER_PATTERN`
+- `MysqlLockService` — `self::IS_FREE_LOCK_FREE`, `self::GET_LOCK_SUCCESS`, `self::GET_LOCK_TIMEOUT`, `self::RELEASE_LOCK_SUCCESS`, `self::RELEASE_LOCK_NOT_OWNED` rewritten to `static::` (5 occurrences) so subclasses overriding lock operations can redeclare the protected constants
+- `AbstractJsonSearch::parsePathMode()` — `self::MODE_ONE`, `self::MODE_ALL` → `static::MODE_ONE`, `static::MODE_ALL`
+- `MysqlLockService::$managerRegistry` visibility widened from `private` to `protected` (aligns with `AbstractRepository::$managerRegistry`, widened in v4.1.0)
+- `MysqlLockService::wrapException()` visibility widened from `private` to `protected` so subclasses adding new lock operations can reuse the same exception-normalization helper
+- `JoinCollection::$joins` visibility widened from `private` to `protected`
+- `AbstractRepository::setManagerRegistry()` — return type widened from `self` to `static` for consistent LSB on fluent subclass chains
+- `AbstractRepository::execute()` — `$stmt` renamed to `$statement`
+- `AbstractRepository::attachFilters()` — `0 < \count(...)` × 3 rewritten to `\count(...) > 0` (non-equality operator must not use Yoda form)
+- `MysqlLockService::acquire()`, `release()`, `acquireLocks()`, `releaseLocks()` — return type widened from `self` to `static`
+- `MysqlLockService::release()` — `0 < $this->locks[...]['count']` → `$this->locks[...]['count'] > 0`
+- `MysqlLockService::prepareLockName()` — `64 < \strlen(...)` → `\strlen(...) > 64`
+- `JoinCollection::addJoin()` — collapsed double `\trim()` call; now trims once with `\trim((string)$join->getAlias())` and checks `'' === $alias`
+- `CHANGELOG.md` — every release entry now carries a titled heading (`## [vX.Y.Z] - YYYY-MM-DD - <Title>`) and follows canonical section order (Breaking Changes → Fixed → Changed → Added → Deprecated → Removed)
+
+### Added
+
+- `MySqlWalker::walkFromClause()`, `walkJoinAssociationDeclaration()`, `applyIndexHint()`, `validateIdentifier()` — `@throws Exception` annotations added to all methods that throw
+- `AbstractRepository::attachCustomFilters()` — exception message corrected from `overwrite` to `override`
+- `tests/Join/JoinCollectionTest.php` — `testAddJoinThrowsOnNullAlias` added to cover the null-alias path through `(string)` coercion after the double-trim refactor
+- `tests/Walker/MySqlWalkerTest.php` — renamed all `testValidateIndexName*` methods and `callValidateIndexName` helper to `testValidateIdentifier*` / `callValidateIdentifier` to match the actual source method `validateIdentifier`
+- `JsonContainsPath::parse()`, `JsonSearch::parse()` — `@throws Exception` added (both delegate to `parsePathMode()` which throws)
+- `AbstractRepository::execute()` — `@throws Exception` added to existing `@param` docblock (delegates to `getConnection()` which throws)
+- `MysqlLockService::getEntityManager()`, `wrapException()` — `@throws MysqlLockException` docblocks added (both throw directly)
+
 ## [v4.1.3] - 2026-04-20 - Harden assertions and expand PHPDoc coverage
+
+### Fixed
+
+- `JoinCollection::addJoin()` — non-empty aliases are now trimmed before storage so padded input (`'  foo  '`) normalizes to `'foo'`
+
+### Changed
+
+- `AbstractRepository::getConnection()` — now throws `Exception` when `ManagerRegistry::getConnection()` returns a non-`Connection` instance (replaces `\assert()` narrowing, which is a no-op under `zend.assertions=-1` in production)
+- `AbstractRepository::attachJoins()` — now throws `Exception` when `Join::getAlias()` returns null (replaces `\assert()` narrowing, same reason)
+- `phpstan-baseline.neon` — trimmed by ~64 lines after the new PHPDoc coverage resolved previously baselined errors
 
 ### Added
 
@@ -21,36 +63,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `tests/Join/JoinCollectionTest.php` — new cases for whitespace-only alias rejection
 - `tests/Function/DateFormatTest.php` — new cases covering the DQL function pipeline
 
-### Changed
-
-- `AbstractRepository::getConnection()` — now throws `Exception` when `ManagerRegistry::getConnection()` returns a non-`Connection` instance (replaces `\assert()` narrowing, which is a no-op under `zend.assertions=-1` in production)
-- `AbstractRepository::attachJoins()` — now throws `Exception` when `Join::getAlias()` returns null (replaces `\assert()` narrowing, same reason)
-- `phpstan-baseline.neon` — trimmed by ~64 lines after the new PHPDoc coverage resolved previously baselined errors
-
-### Fixed
-
-- `JoinCollection::addJoin()` — non-empty aliases are now trimmed before storage so padded input (`'  foo  '`) normalizes to `'foo'`
-
-## [v4.1.2] - 2026-04-17
-
-### Added
-
-- PHPDoc lifecycle note on `CreatedTrait` and `ModifiedTrait` properties explaining null-until-persisted behaviour
-
-### Changed
-
-- `README.md` — documented MySQL as a hard requirement for all features
+## [v4.1.2] - 2026-04-17 - Document MySQL requirement and fix trait timestamp timezone
 
 ### Fixed
 
 - `ModifiedTrait` — now uses UTC explicitly (`new DateTime('now', new DateTimeZone('UTC'))`) instead of relying on server timezone
 - `JoinCollection::addJoin()` — rejects whitespace-only alias strings
 
-## [v4.1.1] - 2026-04-14
+### Changed
+
+- `README.md` — documented MySQL as a hard requirement for all features
 
 ### Added
 
-- `JoinCollection::addJoin()` — throws `Exception` with message `alias cannot be empty` when `$join->getAlias()` returns an empty string, before the duplicate-alias check
+- PHPDoc lifecycle note on `CreatedTrait` and `ModifiedTrait` properties explaining null-until-persisted behaviour
+
+## [v4.1.1] - 2026-04-14 - Centralize MySQL platform guard and deduplicate lock exception handling
 
 ### Changed
 
@@ -63,13 +91,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `phpstan/phpstan` bumped from `2.1.46` to `2.1.47`
 - `precision-soft/symfony-phpunit` bumped from `v3.2.0` to `v3.2.1`
 
-## [v4.1.0] - 2026-04-13
-
 ### Added
 
-- `AbstractRepository` — `@var array<class-string, string>` on `$aliasCache`
-- `AbstractRepository` — `@param array<string, mixed> $filters` on `attachFilters()`, `createQueryBuilderFromFilters()`, `attachCustomFilters()`, `attachGenericFilters()`
-- `MysqlLockService` — `@param list<string>` on `$lockNames` in `acquireLocks()` and `releaseLocks()`
+- `JoinCollection::addJoin()` — throws `Exception` with message `alias cannot be empty` when `$join->getAlias()` returns an empty string, before the duplicate-alias check
+
+## [v4.1.0] - 2026-04-13 - Widen library surface for subclass extension
 
 ### Changed
 
@@ -87,12 +113,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `SqlWalkerTestTrait` — `createMysqlSqlWalker()`, `createNonMysqlSqlWalker()` visibility widened from `private` to `protected`
 - `phpstan-baseline.neon` — removed 7 resolved entries covered by new PHPDoc annotations on `AbstractRepository` and `MysqlLockService`
 
-## [v4.0.5] - 2026-04-10
+### Added
 
-### Changed
+- `AbstractRepository` — `@var array<class-string, string>` on `$aliasCache`
+- `AbstractRepository` — `@param array<string, mixed> $filters` on `attachFilters()`, `createQueryBuilderFromFilters()`, `attachCustomFilters()`, `attachGenericFilters()`
+- `MysqlLockService` — `@param list<string>` on `$lockNames` in `acquireLocks()` and `releaseLocks()`
 
-- Renamed test methods `testIsLocked*` → `testHasLock*` to match the actual method name `hasLock`
-- `precision-soft/symfony-phpunit` bumped from `v3.1.0` to `v3.1.1`
+## [v4.0.5] - 2026-04-10 - Harden MysqlLockService release flow and filter exhaustiveness
 
 ### Fixed
 
@@ -103,14 +130,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `AbstractJsonSearch` — cast `$lexer->lookahead->value` to `(string)` to prevent type errors on non-string token values
 - `AbstractRepository::handleEmptyArrayFilter()` — added exhaustive `default` case; unsupported `EmptyArrayFilterBehavior` values now throw an exception instead of being silently ignored
 
-## [v4.0.4] - 2026-04-09
+### Changed
 
-### Added
+- Renamed test methods `testIsLocked*` → `testHasLock*` to match the actual method name `hasLock`
+- `precision-soft/symfony-phpunit` bumped from `v3.1.0` to `v3.1.1`
 
-- `EmptyArrayFilterBehavior` enum (`PrecisionSoft\Doctrine\Utility\Repository`) — `ThrowException` and `MatchNone` cases for controlling how `AbstractRepository::attachGenericFilters()` handles empty array filter values
-- `AbstractRepository::getFlags()` — generic, overridable hook returning `array<class-string<\UnitEnum>, \UnitEnum>` for tuning repository behavior; replaces single-purpose flag methods so future flags only require a new enum, no new method
-- `AbstractRepository::getLogger()` — overridable hook returning `?LoggerInterface`; absent by default, repositories opt in by overriding
-- `psr/log` `^2.0 || ^3.0` declared as explicit `require` (was previously pulled transitively through Doctrine)
+## [v4.0.4] - 2026-04-09 - Add generic repository flags and optional logger hook
+
+### Fixed
+
+- `AbstractRepository::getAlias()` — `static::$aliasCache` → `self::$aliasCache` (the property is `private static`; late static binding cannot access private members across hierarchy)
+- `MySqlWalker::walkFromClause()` — extracted repeated `FROM` clause regex into `FROM_CLAUSE_PATTERN` private constant to remove duplication
 
 ### Changed
 
@@ -120,12 +150,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `AbstractRepository::getDoctrineRepository()` — exception message uses `static::class` instead of `self::class` so the error points at the actual repository being misused
 - `AbstractRepository::attachGenericFilters()` — removed explicit `ArrayParameterType::INTEGER` / `ArrayParameterType::STRING` detection for `IN` clauses; Doctrine ORM resolves the parameter type from entity field metadata
 
-### Fixed
+### Added
 
-- `AbstractRepository::getAlias()` — `static::$aliasCache` → `self::$aliasCache` (the property is `private static`; late static binding cannot access private members across hierarchy)
-- `MySqlWalker::walkFromClause()` — extracted repeated `FROM` clause regex into `FROM_CLAUSE_PATTERN` private constant to remove duplication
+- `EmptyArrayFilterBehavior` enum (`PrecisionSoft\Doctrine\Utility\Repository`) — `ThrowException` and `MatchNone` cases for controlling how `AbstractRepository::attachGenericFilters()` handles empty array filter values
+- `AbstractRepository::getFlags()` — generic, overridable hook returning `array<class-string<\UnitEnum>, \UnitEnum>` for tuning repository behavior; replaces single-purpose flag methods so future flags only require a new enum, no new method
+- `AbstractRepository::getLogger()` — overridable hook returning `?LoggerInterface`; absent by default, repositories opt in by overriding
+- `psr/log` `^2.0 || ^3.0` declared as explicit `require` (was previously pulled transitively through Doctrine)
 
-## [v4.0.3] - 2026-04-07
+## [v4.0.3] - 2026-04-07 - Stabilize MysqlLockService and tighten empty filter handling
 
 ### Fixed
 
@@ -138,7 +170,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `MySqlWalker` — `self::HINT_*` → `static::HINT_*` for late static binding on index hint constants
 - `ModifiedTrait` — replaced multi-line `Note:` comment with inline `@info` docblock
 
-## [v4.0.2] - 2026-04-06
+## [v4.0.2] - 2026-04-06 - Stabilize MysqlLockService and modernize walker dispatch
+
+### Fixed
+
+- `MysqlLockService::acquire()` — removed unreachable `default` branch in switch
+- `MysqlLockService::release()` — removed unreachable `default` branch in switch
+- `MysqlLockService::releaseLocks()` — copied `$this->locks` to temporary array before iterating to prevent modification during foreach
+- `MysqlLockService::release()` — cleaned up stale lock entry from `$this->locks` when release fails and exception is swallowed (`$throwException = false`)
 
 ### Changed
 
@@ -155,25 +194,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed `setAccessible(true)` calls from test files (unnecessary since PHP 8.1)
 - Updated `phpstan-baseline.neon`
 
-### Fixed
-
-- `MysqlLockService::acquire()` — removed unreachable `default` branch in switch
-- `MysqlLockService::release()` — removed unreachable `default` branch in switch
-- `MysqlLockService::releaseLocks()` — copied `$this->locks` to temporary array before iterating to prevent modification during foreach
-- `MysqlLockService::release()` — cleaned up stale lock entry from `$this->locks` when release fails and exception is swallowed (`$throwException = false`)
-
-## [v4.0.1] - 2026-04-04
-
-### Changed
-
-- Upgraded from PHPUnit 9 to PHPUnit 11.5 via `precision-soft/symfony-phpunit: ^3.0`
-- Replaced `<coverage processUncoveredFiles="true">` with `<source>` element in `phpunit.xml.dist`
-- Replaced `<listeners>` with `<extensions>` using `Symfony\Bridge\PhpUnit\SymfonyExtension`
-- Added `failOnRisky` and `failOnWarning` attributes to `phpunit.xml.dist`
-- Extracted duplicated `createMysqlSqlWalker()` / `createNonMysqlSqlWalker()` into `SqlWalkerTestTrait`
-- Migrated `CreatedTraitTest` and `ModifiedTraitTest` from `TestCase` to `AbstractTestCase` with `getMockDto()` pattern
-- Replaced PHP DQL function registration snippet with YAML Symfony config in README
-- Quoted `$COMPOSER_DEV_MODE` variable in `composer.json` hook script
+## [v4.0.1] - 2026-04-04 - Upgrade to PHPUnit 11 and fix DBAL 4 compatibility
 
 ### Fixed
 
@@ -187,18 +208,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `MySqlWalker::applyIndexHint()` — replaced `null === $indexName` with `is_string()` type check; added null-guard on `preg_replace()` return
 - Removed 3 resolved entries from `phpstan-baseline.neon`
 
-## [v4.0.0] - 2026-04-03
+### Changed
+
+- Upgraded from PHPUnit 9 to PHPUnit 11.5 via `precision-soft/symfony-phpunit: ^3.0`
+- Replaced `<coverage processUncoveredFiles="true">` with `<source>` element in `phpunit.xml.dist`
+- Replaced `<listeners>` with `<extensions>` using `Symfony\Bridge\PhpUnit\SymfonyExtension`
+- Added `failOnRisky` and `failOnWarning` attributes to `phpunit.xml.dist`
+- Extracted duplicated `createMysqlSqlWalker()` / `createNonMysqlSqlWalker()` into `SqlWalkerTestTrait`
+- Migrated `CreatedTraitTest` and `ModifiedTraitTest` from `TestCase` to `AbstractTestCase` with `getMockDto()` pattern
+- Replaced PHP DQL function registration snippet with YAML Symfony config in README
+- Quoted `$COMPOSER_DEV_MODE` variable in `composer.json` hook script
+
+## [v4.0.0] - 2026-04-03 - Drop DBAL 3, adopt PHPStan level 8, full test coverage
 
 ### Breaking Changes
 
 - Dropped Doctrine DBAL 3 support (requires DBAL 4)
 - Removed `squizlabs/php_codesniffer` dev dependency and `phpcs.xml` configuration
 - Renamed `phpunit.xml` to `phpunit.xml.dist`
-
-### Added
-
-- PHPStan level 8 with baseline
-- Test classes: `DateFormatTest`, `JsonContainsTest`, `JsonContainsPathTest`, `JsonExtractTest`, `JsonSearchTest`, `JsonUnquoteTest`, `DoctrineRepositoryTest`, `MysqlLockServiceTest`, `MySqlWalkerTest`, `CreatedTraitTest`, `ModifiedTraitTest`, `ExceptionTest`, `JoinCollectionTest`, `AbstractJsonSearchTest`
 
 ### Changed
 
@@ -208,7 +235,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Descriptive variable names across all source and test files
 - `AbstractRepositoryTest` extends `AbstractTestCase` from `precision-soft/symfony-phpunit`
 
-## [v3.2.5] - 2026-03-21
+### Added
+
+- PHPStan level 8 with baseline
+- Test classes: `DateFormatTest`, `JsonContainsTest`, `JsonContainsPathTest`, `JsonExtractTest`, `JsonSearchTest`, `JsonUnquoteTest`, `DoctrineRepositoryTest`, `MysqlLockServiceTest`, `MySqlWalkerTest`, `CreatedTraitTest`, `ModifiedTraitTest`, `ExceptionTest`, `JoinCollectionTest`, `AbstractJsonSearchTest`
+
+## [v3.2.5] - 2026-03-21 - Tighten MysqlWalker regex and FOR UPDATE check
 
 ### Fixed
 
@@ -216,7 +248,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `MySqlWalker::walkJoinAssociationDeclaration()` — join parsing regex changed from `/ON/` to `/\bON\b/` with word boundaries so identifiers containing `ON` (e.g. `conditions`, `ON_HAND`) no longer match accidentally
 - `MySqlWalker` — `INDEX_NAME_PATTERN` changed from `/^[\w\`,\s]+$/` to `/^[\w\`, ]+$/`; restricts whitespace to literal space (no tabs or newlines)
 
-## [v3.2.4] - 2026-03-20
+## [v3.2.4] - 2026-03-20 - Key locks by composite entity manager name
+
+### Fixed
+
+- `MysqlLockService` — validated each `fetchAssociative()` result with explicit `isset()` checks on `lockIsFree`, `lockAcquired`, and `lockReleased` keys before consumption
+- `MySqlWalker::walkJoinAssociationDeclaration()` — `preg_replace()` limited to first `ON` occurrence via explicit `count` parameter of `1`
 
 ### Changed
 
@@ -224,18 +261,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `MysqlLockService::$locks` docblock expanded to document the full stored shape including `lockName` and `entityManagerName`
 - `MysqlLockService::releaseLocks()` — when `$lockNames` is `null`, iterates stored lock metadata so each lock is released against its original manager instead of the default one
 
-### Fixed
-
-- `MysqlLockService` — validated each `fetchAssociative()` result with explicit `isset()` checks on `lockIsFree`, `lockAcquired`, and `lockReleased` keys before consumption
-- `MySqlWalker::walkJoinAssociationDeclaration()` — `preg_replace()` limited to first `ON` occurrence via explicit `count` parameter of `1`
-
-## [v3.2.3] - 2026-03-19
-
-### Added
-
-- `MySqlWalker::INDEX_NAME_PATTERN` constant (`/^[\w\`,\s]+$/`) for validating index and table names before emission
-- `MySqlWalker::validateIndexName()` — rejects index/table names that do not match the pattern
-- `MySqlWalker::applyIndexHint()` — extracted private helper consolidating the duplicated logic for `USE INDEX`, `IGNORE INDEX`, and `FORCE INDEX` hints
+## [v3.2.3] - 2026-03-19 - Validate index and table identifiers in MysqlWalker
 
 ### Fixed
 
@@ -244,7 +270,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `MysqlLockService` — removed stale `$preparedLockName = null` reset from catch scope
 - `README.md` — removed outdated TODO about missing unit tests
 
-## [v3.2.2] - 2026-03-19
+### Added
+
+- `MySqlWalker::INDEX_NAME_PATTERN` constant (`/^[\w\`,\s]+$/`) for validating index and table names before emission
+- `MySqlWalker::validateIndexName()` — rejects index/table names that do not match the pattern
+- `MySqlWalker::applyIndexHint()` — extracted private helper consolidating the duplicated logic for `USE INDEX`, `IGNORE INDEX`, and `FORCE INDEX` hints
+
+## [v3.2.2] - 2026-03-19 - Fix undefined preparedLockName in catch scope
 
 ### Fixed
 
@@ -255,7 +287,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `JsonContains`, `JsonSearch`, `MysqlLockService`, `MySqlWalker` — `empty(...)` replaced with explicit `null`/boolean comparisons for predictable evaluation
 
-## [v3.2.1] - 2026-03-19
+## [v3.2.1] - 2026-03-19 - Relocate dev scripts to .dev/ directory
 
 ### Changed
 
@@ -264,7 +296,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `composer.json` — homepage URL corrected to match the GitHub repository URL
 - `composer.lock` refreshed via `composer update`
 
-## [v3.2.0] - 2026-03-19
+## [v3.2.0] - 2026-03-19 - Initialize nullable properties and adopt Yoda conditions
 
 ### Fixed
 
@@ -277,7 +309,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `AbstractRepository`, `JoinCollection`, `MysqlLockService`, `MySqlWalker`, DQL functions — `instanceof` checks and comparisons rewritten in Yoda form (e.g. `true === ($platform instanceof MySqlPlatform)`) for consistency with project style
 - `README.md` — examples updated to use PHP 8 attributes for DQL function registration; clone URLs corrected to match the GitHub repository
 
-## [v3.1.0] - 2026-03-13
+## [v3.1.0] - 2026-03-13 - Normalize source code style across the package
 
 ### Changed
 
@@ -288,7 +320,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `.dev/git-hooks/pre-commit` — validation flow updated
 - `README.md` — formatting adjustments; `.gitignore` entries normalized
 
-## [v3.0.1] - 2025-10-25
+## [v3.0.1] - 2025-10-25 - Fix PHP 8.4 implicit-nullable deprecations
 
 ### Fixed
 
@@ -296,11 +328,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `MysqlLockService::releaseLocks()` — `array $lockNames = null` signature changed to `?array $lockNames = null`
 - `Exception` and `MysqlLockException` — minor formatting normalization
 
-## [v3.0.0] - 2025-02-27
+## [v3.0.0] - 2025-02-27 - Narrow attachFilters visibility to protected
 
 ### Breaking Changes
 
 - `AbstractRepository::attachFilters()` — visibility narrowed from `public` to `protected`; external callers can no longer invoke it directly
+
+### Changed
+
+- `AbstractRepository::setManagerRegistry()` — internal documentation comment added
 
 ### Added
 
@@ -308,17 +344,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `AbstractRepository::refresh(object $entity): void` — public entity-refresh helper delegating to the resolved manager
 - `Doctrine\Persistence\ObjectManager` imported for the new return type
 
-### Changed
-
-- `AbstractRepository::setManagerRegistry()` — internal documentation comment added
-
-## [v2.0.1] - 2024-11-07
+## [v2.0.1] - 2024-11-07 - Fix undefined preparedLockName in release()
 
 ### Fixed
 
 - `MysqlLockService::release()` — reordered pre-acquisition validation and reference-count decrement inside the `try` block so `$preparedLockName` is always defined in the corresponding `catch` scope; previously threw an undefined-variable error when the lock lookup failed
 
-## [v2.0.0] - 2024-10-17
+## [v2.0.0] - 2024-10-17 - Widen DBAL constraint to allow 4.x
 
 ### Changed
 
@@ -328,7 +360,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `.php-cs-fixer.dist.php` — configuration simplified
 - Docker base image and test helpers refreshed
 
-## [v1.0.0] - 2024-09-17
+## [v1.0.0] - 2024-09-17 - Initial public release
 
 ### Added
 
@@ -341,11 +373,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `MySqlWalker` — custom SQL walker adding `USE INDEX` / `IGNORE INDEX` / `FORCE INDEX` / `FOR UPDATE` hints
 - Dev infrastructure: Docker container, git hooks (pre-commit with php-cs-fixer + lint + PHPUnit), PHP-CS-Fixer configuration, PHPUnit 9 test scaffolding
 
-### Notes
+[Unreleased]: https://github.com/precision-soft/doctrine-utility/compare/v4.1.4...HEAD
 
-- Initial public release of `precision-soft/doctrine-utility`
-
-[Unreleased]: https://github.com/precision-soft/doctrine-utility/compare/v4.1.3...HEAD
+[v4.1.4]: https://github.com/precision-soft/doctrine-utility/compare/v4.1.3...v4.1.4
 
 [v4.1.3]: https://github.com/precision-soft/doctrine-utility/compare/v4.1.2...v4.1.3
 

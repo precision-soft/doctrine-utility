@@ -74,6 +74,17 @@ final class JoinCollectionTest extends TestCase
         $joinCollection->addJoin($join);
     }
 
+    public function testAddJoinThrowsOnNullAlias(): void
+    {
+        $joinCollection = new JoinCollection();
+        $join = new Join(Join::INNER_JOIN, 'entity');
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('alias cannot be empty');
+
+        $joinCollection->addJoin($join);
+    }
+
     public function testAddJoinTrimsWhitespacePaddedAlias(): void
     {
         $joinCollection = new JoinCollection();
