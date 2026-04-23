@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [v4.1.4] - 2026-04-22 - Widen late static binding and open library surface for subclasses
+## [v4.1.4] - 2026-04-23 - Widen late static binding and open library surface for subclasses
 
 ### Changed
 
