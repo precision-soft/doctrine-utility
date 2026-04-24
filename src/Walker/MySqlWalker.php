@@ -12,10 +12,6 @@ use Doctrine\ORM\Query\AST\Join;
 use Doctrine\ORM\Query\SqlWalker;
 use PrecisionSoft\Doctrine\Utility\Exception\Exception;
 
-/**
- * $qb->setHint(Query::HINT_CUSTOM_OUTPUT_WALKER, MySqlWalker::class);
- * $qb->setHint(MySqlWalker::HINT_IGNORE_INDEX, 'PRIMARY, other_index');
- */
 class MySqlWalker extends SqlWalker
 {
     public const HINT_USE_INDEX = 'MySqlWalker.UseIndex';

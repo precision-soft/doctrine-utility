@@ -239,7 +239,6 @@ abstract class AbstractRepository
     }
 
     /**
-     * Override this method to handle custom (non-entity-field) filters and build the join collection.
      * The default implementation throws intentionally — it acts as a soft-abstract to signal
      * that custom filters must be handled by the subclass when they are present.
      *
@@ -256,8 +255,7 @@ abstract class AbstractRepository
     }
 
     /**
-     * Override to customize repository behavior. Each entry maps a flag enum class
-     * to one of its cases; absent flags fall back to abstract repository defaults.
+     * Each entry maps a flag enum class to one of its cases; absent flags fall back to abstract repository defaults.
      *
      * @return array<class-string<UnitEnum>, UnitEnum>
      */

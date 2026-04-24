@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v4.1.6] - 2026-04-24 - Remove what-comments from MySqlWalker and AbstractRepository
+
+### Changed
+
+- `MySqlWalker` — removed class-level docblock containing usage examples; the hint constant names make the API self-evident
+- `AbstractRepository::attachCustomFilters()` — removed "Override this method to handle custom filters" opening sentence; kept the non-obvious explanation of the intentional-throw soft-abstract pattern
+- `AbstractRepository::getFlags()` — removed "Override to customize repository behavior" opening sentence; kept the non-obvious structure description of the flag map
+
 ## [v4.1.5] - 2026-04-23 - Remove redundant property comments and tighten docblock FQN references
 
 ### Changed
@@ -383,7 +391,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `MySqlWalker` — custom SQL walker adding `USE INDEX` / `IGNORE INDEX` / `FORCE INDEX` / `FOR UPDATE` hints
 - Dev infrastructure: Docker container, git hooks (pre-commit with php-cs-fixer + lint + PHPUnit), PHP-CS-Fixer configuration, PHPUnit 9 test scaffolding
 
-[Unreleased]: https://github.com/precision-soft/doctrine-utility/compare/v4.1.5...HEAD
+[Unreleased]: https://github.com/precision-soft/doctrine-utility/compare/v4.1.6...HEAD
+
+[v4.1.6]: https://github.com/precision-soft/doctrine-utility/compare/v4.1.5...v4.1.6
 
 [v4.1.5]: https://github.com/precision-soft/doctrine-utility/compare/v4.1.4...v4.1.5
 
