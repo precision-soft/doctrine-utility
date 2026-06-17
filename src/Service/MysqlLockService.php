@@ -59,10 +59,10 @@ class MysqlLockService
      * @throws MysqlLockException if the lock cannot be acquired or times out
      */
     public function acquire(
-        string $lockName,
-        int $timeout = 0,
+        string  $lockName,
+        int     $timeout = 0,
         ?string $entityManagerName = null,
-        bool $forceRefresh = false,
+        bool    $forceRefresh = false,
     ): static {
         $lockKey = $this->buildLockKey($lockName, $entityManagerName);
 
@@ -119,9 +119,9 @@ class MysqlLockService
      * @throws MysqlLockException if $throwException is true and the lock cannot be released
      */
     public function release(
-        string $lockName,
+        string  $lockName,
         ?string $entityManagerName = null,
-        bool $throwException = false,
+        bool    $throwException = false,
     ): static {
         $lockKey = $this->buildLockKey($lockName, $entityManagerName);
 
@@ -206,9 +206,9 @@ class MysqlLockService
      * @throws MysqlLockException if $throwException is true and any lock cannot be released
      */
     public function releaseLocks(
-        ?array $lockNames = null,
+        ?array  $lockNames = null,
         ?string $entityManagerName = null,
-        bool $throwException = false,
+        bool    $throwException = false,
     ): static {
         if (null === $lockNames) {
             $locksToRelease = $this->locks;
