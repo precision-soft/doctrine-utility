@@ -57,8 +57,8 @@ abstract class AbstractRepository
      */
     protected function attachFilters(
         QueryBuilder $queryBuilder,
-        array        $filters,
-        ?string      $managerName = null,
+        array $filters,
+        ?string $managerName = null,
     ): ?JoinCollection {
         [$genericFilters, $customFilters] = $this->sortFilters($filters, $managerName);
 
@@ -88,8 +88,8 @@ abstract class AbstractRepository
      * @throws Exception if the ManagerRegistry returns a connection that is not a Connection instance
      */
     protected function execute(
-        string  $query,
-        array   $parameters = [],
+        string $query,
+        array $parameters = [],
         ?string $connectionName = null,
     ): Result {
         $statement = $this->getConnection($connectionName)->prepare($query);
@@ -130,8 +130,8 @@ abstract class AbstractRepository
      * @throws Exception if the entity repository is not a DoctrineRepository, or if custom filters are present and attachCustomFilters() has not been overridden
      */
     protected function createQueryBuilderFromFilters(
-        array   $filters,
-        bool    $selectJoins = false,
+        array $filters,
+        bool $selectJoins = false,
         ?string $managerName = null,
     ): QueryBuilder {
         $queryBuilder = $this->createQueryBuilder($managerName);
@@ -152,7 +152,7 @@ abstract class AbstractRepository
      * @throws Exception if the entity repository is not a DoctrineRepository
      */
     protected function sortFilters(
-        array   $filters,
+        array $filters,
         ?string $managerName = null,
     ): array {
         $genericFilters = $customFilters = [];
@@ -175,7 +175,7 @@ abstract class AbstractRepository
      * @throws Exception if a join has an unrecognised join type or a null alias
      */
     protected function attachJoins(
-        QueryBuilder   $queryBuilder,
+        QueryBuilder $queryBuilder,
         JoinCollection $joinCollection,
     ): void {
         foreach ($joinCollection->getJoins() as $join) {
@@ -247,7 +247,7 @@ abstract class AbstractRepository
      */
     protected function attachCustomFilters(
         QueryBuilder $queryBuilder,
-        array        $filters,
+        array $filters,
     ): JoinCollection {
         throw new Exception(
             \sprintf('override `%s` in `%s`', __METHOD__, static::class),
@@ -277,7 +277,7 @@ abstract class AbstractRepository
      */
     protected function attachGenericFilters(
         QueryBuilder $queryBuilder,
-        array        $filters,
+        array $filters,
     ): void {
         /** @info filter names are interpolated into DQL but cannot be user-supplied: sortFilters() only passes keys here after hasField() confirms them as mapped entity fields */
         foreach ($filters as $filterName => $filterValue) {
@@ -307,7 +307,7 @@ abstract class AbstractRepository
      */
     protected function handleEmptyArrayFilter(
         QueryBuilder $queryBuilder,
-        string       $filterName,
+        string $filterName,
     ): void {
         $emptyArrayFilterBehavior = $this->getFlag(
             EmptyArrayFilterBehavior::class,
