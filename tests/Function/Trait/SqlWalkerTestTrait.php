@@ -9,6 +9,7 @@ declare(strict_types=1);
 namespace PrecisionSoft\Doctrine\Utility\Test\Function\Trait;
 
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Platforms\MariaDBPlatform;
 use Doctrine\DBAL\Platforms\MySQLPlatform;
 use Doctrine\DBAL\Platforms\PostgreSQLPlatform;
 use Doctrine\ORM\Query\SqlWalker;
@@ -22,6 +23,19 @@ trait SqlWalkerTestTrait
         $connection = Mockery::mock(Connection::class);
         $connection->shouldReceive('getDatabasePlatform')
             ->andReturn(new MySQLPlatform());
+
+        $sqlWalker = Mockery::mock(SqlWalker::class);
+        $sqlWalker->shouldReceive('getConnection')
+            ->andReturn($connection);
+
+        return $sqlWalker;
+    }
+
+    protected function createMariaDbSqlWalker(): SqlWalker|MockInterface
+    {
+        $connection = Mockery::mock(Connection::class);
+        $connection->shouldReceive('getDatabasePlatform')
+            ->andReturn(new MariaDBPlatform());
 
         $sqlWalker = Mockery::mock(SqlWalker::class);
         $sqlWalker->shouldReceive('getConnection')

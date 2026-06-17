@@ -92,17 +92,16 @@ class MysqlLockService
             switch (true) {
                 case static::GET_LOCK_SUCCESS === $lockAcquired:
                     if (true === isset($this->locks[$lockKey])) {
+                        /** @info refresh path: the lock was already held and forceRefresh re-ran GET_LOCK; update the prepared name in place without inflating the reference count */
                         $this->locks[$lockKey]['preparedLockName'] = $preparedLockName;
                     } else {
                         $this->locks[$lockKey] = [
                             'preparedLockName' => $preparedLockName,
-                            'count' => 0,
+                            'count' => 1,
                             'lockName' => $lockName,
                             'entityManagerName' => $entityManagerName,
                         ];
                     }
-
-                    ++$this->locks[$lockKey]['count'];
 
                     break;
                 case static::GET_LOCK_TIMEOUT === $lockAcquired:
@@ -214,8 +213,13 @@ class MysqlLockService
             $locksToRelease = $this->locks;
 
             foreach ($locksToRelease as $lockData) {
+                $lockKey = $this->buildLockKey($lockData['lockName'], $lockData['entityManagerName']);
+
                 try {
-                    $this->release($lockData['lockName'], $lockData['entityManagerName'], throwException: true);
+                    /** @info release() is reference-counted; "release all" must fully drain a reentrant lock, so loop until the key is gone */
+                    while (true === isset($this->locks[$lockKey])) {
+                        $this->release($lockData['lockName'], $lockData['entityManagerName'], throwException: true);
+                    }
                 } catch (Throwable $throwable) {
                     if (true === $throwException) {
                         throw new MysqlLockException($throwable->getMessage(), (int)$throwable->getCode(), $throwable);

@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v4.1.7] - 2026-06-17 - Fix MariaDB JSON functions and lock reference-count inflation
+
+### Fixed
+
+- `AbstractJsonSearch::assertMySQLPlatform()` — the platform check now accepts `AbstractMySQLPlatform` instead of only `MySQLPlatform`, so the `JSON_EXTRACT`, `JSON_SEARCH`, `JSON_CONTAINS`, `JSON_CONTAINS_PATH`, `JSON_UNQUOTE`, and `DATE_FORMAT` DQL functions now work on MariaDB (whose `MariaDBPlatform` is a sibling of `MySQLPlatform` in DBAL 4, not a subclass); previously they threw "function not supported" on MariaDB
+- `MysqlLockService::acquire()` — calling `acquire()` with `forceRefresh: true` on an already-held lock now re-runs `GET_LOCK` and updates the prepared lock name in place without incrementing the reference count; previously the count was inflated, so a matching `release()` would leave the MySQL lock held
+- `MysqlLockService::releaseLocks(null)` — "release all currently held locks" now fully drains reentrant locks; because `release()` is reference-counted, a lock acquired more than once was previously only decremented by one per call and left held. It now loops until each lock is released
+
+### Added
+
+- `composer.json` — added `test`, `phpstan`, `cs-check`, `cs-fix` and an aggregate `check` convenience script wrapping `simple-phpunit`, `phpstan`, and `php-cs-fixer`
+
 ## [v4.1.6] - 2026-04-24 - Remove what-comments from MySqlWalker and AbstractRepository
 
 ### Changed
@@ -391,7 +403,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `MySqlWalker` — custom SQL walker adding `USE INDEX` / `IGNORE INDEX` / `FORCE INDEX` / `FOR UPDATE` hints
 - Dev infrastructure: Docker container, git hooks (pre-commit with php-cs-fixer + lint + PHPUnit), PHP-CS-Fixer configuration, PHPUnit 9 test scaffolding
 
-[Unreleased]: https://github.com/precision-soft/doctrine-utility/compare/v4.1.6...HEAD
+[Unreleased]: https://github.com/precision-soft/doctrine-utility/compare/v4.1.7...HEAD
+
+[v4.1.7]: https://github.com/precision-soft/doctrine-utility/compare/v4.1.6...v4.1.7
 
 [v4.1.6]: https://github.com/precision-soft/doctrine-utility/compare/v4.1.5...v4.1.6
 

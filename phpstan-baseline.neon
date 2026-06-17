@@ -33,7 +33,7 @@ parameters:
 		-
 			message: '#^Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage\:\:andReturn\(\)\.$#'
 			identifier: method.notFound
-			count: 4
+			count: 6
 			path: tests/Function/DateFormatTest.php
 
 		-
@@ -69,7 +69,7 @@ parameters:
 		-
 			message: '#^Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage\:\:andReturn\(\)\.$#'
 			identifier: method.notFound
-			count: 5
+			count: 7
 			path: tests/Function/JsonContainsPathTest.php
 
 		-
@@ -111,7 +111,7 @@ parameters:
 		-
 			message: '#^Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage\:\:andReturn\(\)\.$#'
 			identifier: method.notFound
-			count: 4
+			count: 6
 			path: tests/Function/JsonContainsTest.php
 
 		-
@@ -153,13 +153,13 @@ parameters:
 		-
 			message: '#^Call to an undefined method Doctrine\\ORM\\Query\\SqlWalker\|Mockery\\MockInterface\:\:shouldReceive\(\)\.$#'
 			identifier: method.notFound
-			count: 3
+			count: 4
 			path: tests/Function/JsonExtractTest.php
 
 		-
 			message: '#^Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage\:\:andReturn\(\)\.$#'
 			identifier: method.notFound
-			count: 5
+			count: 7
 			path: tests/Function/JsonExtractTest.php
 
 		-
@@ -171,25 +171,25 @@ parameters:
 		-
 			message: '#^Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage\:\:twice\(\)\.$#'
 			identifier: method.notFound
-			count: 1
+			count: 2
 			path: tests/Function/JsonExtractTest.php
 
 		-
 			message: '#^Parameter \#1 \$sqlWalker of method PrecisionSoft\\Doctrine\\Utility\\Function\\JsonExtract\:\:getSql\(\) expects Doctrine\\ORM\\Query\\SqlWalker, Doctrine\\ORM\\Query\\SqlWalker\|Mockery\\MockInterface given\.$#'
 			identifier: argument.type
-			count: 3
+			count: 4
 			path: tests/Function/JsonExtractTest.php
 
 		-
 			message: '#^Property PrecisionSoft\\Doctrine\\Utility\\Function\\JsonExtract\:\:\$jsonDocExpr \(Doctrine\\ORM\\Query\\AST\\Node\) does not accept Mockery\\MockInterface\.$#'
 			identifier: assign.propertyType
-			count: 3
+			count: 4
 			path: tests/Function/JsonExtractTest.php
 
 		-
 			message: '#^Property PrecisionSoft\\Doctrine\\Utility\\Function\\JsonExtract\:\:\$jsonPaths \(array\<Doctrine\\ORM\\Query\\AST\\Node\>\) does not accept array\<int, Mockery\\MockInterface\>\.$#'
 			identifier: assign.propertyType
-			count: 3
+			count: 4
 			path: tests/Function/JsonExtractTest.php
 
 		-
@@ -201,7 +201,7 @@ parameters:
 		-
 			message: '#^Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage\:\:andReturn\(\)\.$#'
 			identifier: method.notFound
-			count: 5
+			count: 7
 			path: tests/Function/JsonSearchTest.php
 
 		-
@@ -255,7 +255,7 @@ parameters:
 		-
 			message: '#^Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage\:\:andReturn\(\)\.$#'
 			identifier: method.notFound
-			count: 4
+			count: 6
 			path: tests/Function/JsonUnquoteTest.php
 
 		-
@@ -357,7 +357,7 @@ parameters:
 		-
 			message: '#^Call to an undefined method Doctrine\\DBAL\\Connection\|Mockery\\MockInterface\:\:shouldReceive\(\)\.$#'
 			identifier: method.notFound
-			count: 48
+			count: 52
 			path: tests/Service/MysqlLockServiceTest.php
 
 		-
@@ -369,7 +369,7 @@ parameters:
 		-
 			message: '#^Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage\:\:andReturn\(\)\.$#'
 			identifier: method.notFound
-			count: 35
+			count: 37
 			path: tests/Service/MysqlLockServiceTest.php
 
 		-
@@ -381,7 +381,13 @@ parameters:
 		-
 			message: '#^Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage\:\:once\(\)\.$#'
 			identifier: method.notFound
-			count: 40
+			count: 45
+			path: tests/Service/MysqlLockServiceTest.php
+
+		-
+			message: '#^Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage\:\:times\(\)\.$#'
+			identifier: method.notFound
+			count: 2
 			path: tests/Service/MysqlLockServiceTest.php
 
 		-

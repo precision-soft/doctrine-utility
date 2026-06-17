@@ -8,7 +8,7 @@ declare(strict_types=1);
 
 namespace PrecisionSoft\Doctrine\Utility\Function;
 
-use Doctrine\DBAL\Platforms\MySQLPlatform;
+use Doctrine\DBAL\Platforms\AbstractMySQLPlatform;
 use Doctrine\ORM\Query\AST\Functions\FunctionNode;
 use Doctrine\ORM\Query\AST\Node;
 use Doctrine\ORM\Query\Parser;
@@ -23,11 +23,12 @@ abstract class AbstractJsonSearch extends FunctionNode
     public Node $mode;
 
     /**
-     * @throws Exception if the database platform is not MySQL
+     * @throws Exception if the database platform is not in the MySQL family (MySQL or MariaDB)
      */
     protected function assertMySQLPlatform(SqlWalker $sqlWalker): void
     {
-        if (false === ($sqlWalker->getConnection()->getDatabasePlatform() instanceof MySQLPlatform)) {
+        /** @info AbstractMySQLPlatform covers both MySQLPlatform and MariaDBPlatform (siblings in DBAL 4); MariaDB supports these JSON/DATE_FORMAT functions too, so the check must not narrow to MySQLPlatform alone */
+        if (false === ($sqlWalker->getConnection()->getDatabasePlatform() instanceof AbstractMySQLPlatform)) {
             throw new Exception(\sprintf('function `%s` is not supported', static::FUNCTION_NAME)); // @phpstan-ignore classConstant.notFound
         }
     }

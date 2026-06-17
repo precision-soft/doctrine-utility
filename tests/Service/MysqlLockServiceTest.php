@@ -211,6 +211,36 @@ final class MysqlLockServiceTest extends TestCase
         $this->mysqlLockService->acquire('test_lock', 0, null, true);
     }
 
+    public function testAcquireWithForceRefreshDoesNotInflateCount(): void
+    {
+        $acquireResult = Mockery::mock(Result::class);
+        $acquireResult->shouldReceive('fetchAssociative')
+            ->once()
+            ->andReturn(['lockAcquired' => 1]);
+
+        $reacquireResult = Mockery::mock(Result::class);
+        $reacquireResult->shouldReceive('fetchAssociative')
+            ->once()
+            ->andReturn(['lockAcquired' => 1]);
+
+        $releaseResult = Mockery::mock(Result::class);
+        $releaseResult->shouldReceive('fetchAssociative')
+            ->once()
+            ->andReturn(['lockReleased' => 1]);
+
+        $this->connection->shouldReceive('quote')
+            ->andReturn("'test_lock'");
+        $this->connection->shouldReceive('executeQuery')
+            ->times(3)
+            ->andReturn($acquireResult, $reacquireResult, $releaseResult);
+
+        $this->mysqlLockService->acquire('test_lock');
+        $this->mysqlLockService->acquire('test_lock', 0, null, true);
+
+        /** @info a single release must drop the reference count to 0 and issue RELEASE_LOCK — forceRefresh re-acquired the same lock without inflating the count */
+        $this->mysqlLockService->release('test_lock', null, true);
+    }
+
     public function testAcquireThrowsExceptionOnTimeout(): void
     {
         $queryResult = Mockery::mock(Result::class);
@@ -485,6 +515,35 @@ final class MysqlLockServiceTest extends TestCase
         $returnValue = $this->mysqlLockService->releaseLocks();
 
         static::assertSame($this->mysqlLockService, $returnValue);
+    }
+
+    public function testReleaseLocksWithNullFullyReleasesReentrantLock(): void
+    {
+        $acquireResult = Mockery::mock(Result::class);
+        $acquireResult->shouldReceive('fetchAssociative')
+            ->once()
+            ->andReturn(['lockAcquired' => 1]);
+
+        $releaseResult = Mockery::mock(Result::class);
+        $releaseResult->shouldReceive('fetchAssociative')
+            ->once()
+            ->andReturn(['lockReleased' => 1]);
+
+        $this->connection->shouldReceive('quote')
+            ->andReturn("'lock_a'");
+        /** @info one GET_LOCK (the second acquire only increments the in-process count) and exactly one RELEASE_LOCK despite a reference count of 2 */
+        $this->connection->shouldReceive('executeQuery')
+            ->times(2)
+            ->andReturn($acquireResult, $releaseResult);
+
+        $this->mysqlLockService->acquire('lock_a');
+        $this->mysqlLockService->acquire('lock_a');
+
+        $this->mysqlLockService->releaseLocks();
+
+        /** @info the lock is fully drained, so releasing it again must report it as not currently held */
+        $this->expectException(MysqlLockException::class);
+        $this->mysqlLockService->release('lock_a', null, true);
     }
 
     public function testReleaseLocksSwallowsExceptionsWhenThrowFalse(): void

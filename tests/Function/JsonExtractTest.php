@@ -62,6 +62,22 @@ final class JsonExtractTest extends TestCase
         static::assertSame("JSON_EXTRACT(t0_.data, '$.name', '$.age')", $sqlDeclaration);
     }
 
+    public function testGetSqlOnMariaDbPlatformWithSinglePath(): void
+    {
+        $sqlWalker = $this->createMariaDbSqlWalker();
+        $sqlWalker->shouldReceive('walkStringPrimary')
+            ->twice()
+            ->andReturn('t0_.data', "'$.name'");
+
+        $jsonExtract = $this->createInstance();
+        $jsonExtract->jsonDocExpr = Mockery::mock(Node::class);
+        $jsonExtract->jsonPaths = [Mockery::mock(Node::class)];
+
+        $sqlDeclaration = $jsonExtract->getSql($sqlWalker);
+
+        static::assertSame("JSON_EXTRACT(t0_.data, '$.name')", $sqlDeclaration);
+    }
+
     public function testGetSqlThrowsOnNonMysqlPlatform(): void
     {
         $sqlWalker = $this->createNonMysqlSqlWalker();
