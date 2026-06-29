@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v4.1.8] - 2026-06-29 - Bind array IN filters with the field's Doctrine type
+
+### Fixed
+
+- `AbstractRepository::attachGenericFilters()` — array filter values bound through `... IN (:param)` are now converted with the mapped field's Doctrine type and bound with the matching `ArrayParameterType` (`INTEGER`, `BINARY`, or `STRING`). Previously the array was bound untyped, so Doctrine inferred `ArrayParameterType::STRING`; for a field whose Doctrine type maps to a binary column (e.g. a `uuid` stored as `BINARY(16)`) each element was bound as its string representation and matched zero rows, so `findBy(['id' => [...]])` and delete-by-ids over a `uuid` primary key silently affected nothing. Single-value `=` filters were already correct and remain unchanged. No public or protected method signatures changed, so existing subclass overrides keep working
+
+### Added
+
+- `AbstractRepository::attachArrayFilter()` — protected helper that converts mapped-field array values via `Type::getType(...)->convertToDatabaseValue()` and selects the matching `ArrayParameterType`. It resolves the entity's manager through `ManagerRegistry::getManagerForClass()`; owning-side associations, unmapped keys, and non-ORM managers fall back to the previous untyped binding, so the change never regresses an existing setup
+- `tests/Repository/Fixture/BinaryUuidType.php` — test-only Doctrine type emulating a `uuid` stored as `BINARY(16)`, since no real `uuid` type ships with the package
+- `tests/Repository/AbstractRepositoryTest.php` — cases covering `uuid` (regression), integer, and string array `IN` binding, owning-side association array `IN` (untyped, unchanged), and single-value `=` for `uuid`/integer/string
+
 ## [v4.1.7] - 2026-06-17 - Fix MariaDB JSON functions and lock reference-count inflation
 
 ### Fixed
@@ -403,7 +415,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `MySqlWalker` — custom SQL walker adding `USE INDEX` / `IGNORE INDEX` / `FORCE INDEX` / `FOR UPDATE` hints
 - Dev infrastructure: Docker container, git hooks (pre-commit with php-cs-fixer + lint + PHPUnit), PHP-CS-Fixer configuration, PHPUnit 9 test scaffolding
 
-[Unreleased]: https://github.com/precision-soft/doctrine-utility/compare/v4.1.7...HEAD
+[Unreleased]: https://github.com/precision-soft/doctrine-utility/compare/v4.1.8...HEAD
+
+[v4.1.8]: https://github.com/precision-soft/doctrine-utility/compare/v4.1.7...v4.1.8
 
 [v4.1.7]: https://github.com/precision-soft/doctrine-utility/compare/v4.1.6...v4.1.7
 

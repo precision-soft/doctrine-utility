@@ -8,8 +8,12 @@ declare(strict_types=1);
 
 namespace PrecisionSoft\Doctrine\Utility\Repository;
 
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Result;
+use Doctrine\DBAL\Types\Type;
+use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Query\Expr\Join;
 use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
@@ -292,14 +296,62 @@ abstract class AbstractRepository
                     continue;
                 }
 
-                $queryBuilder->andWhere(static::getAlias() . ".{$filterName} IN (:{$filterName})")
-                    ->setParameter($filterName, $filterValue);
+                $this->attachArrayFilter($queryBuilder, $filterName, $filterValue);
                 continue;
             }
 
             $queryBuilder->andWhere(static::getAlias() . ".{$filterName} = :{$filterName}")
                 ->setParameter($filterName, $filterValue);
         }
+    }
+
+    /**
+     * Binds an array filter as an `IN (...)` clause. For mapped fields the value is converted with the
+     * field's Doctrine type and bound with the matching ArrayParameterType so binary columns (e.g. a `uuid`
+     * stored as BINARY(16)) match instead of being bound as their string representation. Associations and
+     * unmapped keys keep the untyped binding.
+     *
+     * @param non-empty-array<array-key, mixed> $filterValue
+     */
+    protected function attachArrayFilter(
+        QueryBuilder $queryBuilder,
+        string $filterName,
+        array $filterValue,
+    ): void {
+        $queryBuilder->andWhere(static::getAlias() . ".{$filterName} IN (:{$filterName})");
+
+        $manager = $this->managerRegistry->getManagerForClass($this->getEntityClass());
+
+        /** @info without an ORM EntityManager the field type cannot be resolved; fall back to the untyped binding so non-ORM managers keep working as before */
+        if (false === ($manager instanceof EntityManagerInterface)) {
+            $queryBuilder->setParameter($filterName, $filterValue);
+
+            return;
+        }
+
+        $classMetadata = $manager->getClassMetadata($this->getEntityClass());
+        $fieldType = $classMetadata->getTypeOfField($filterName);
+
+        if (false === $classMetadata->hasField($filterName) || null === $fieldType) {
+            $queryBuilder->setParameter($filterName, $filterValue);
+
+            return;
+        }
+
+        $platform = $manager->getConnection()->getDatabasePlatform();
+        $doctrineType = Type::getType($fieldType);
+        $databaseValues = \array_map(
+            static fn(mixed $value): mixed => $doctrineType->convertToDatabaseValue($value, $platform),
+            \array_values($filterValue),
+        );
+
+        $arrayParameterType = match ($doctrineType->getBindingType()) {
+            ParameterType::INTEGER => ArrayParameterType::INTEGER,
+            ParameterType::BINARY => ArrayParameterType::BINARY,
+            default => ArrayParameterType::STRING,
+        };
+
+        $queryBuilder->setParameter($filterName, $databaseValues, $arrayParameterType);
     }
 
     /**

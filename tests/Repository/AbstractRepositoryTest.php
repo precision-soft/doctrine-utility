@@ -8,13 +8,18 @@ declare(strict_types=1);
 
 namespace PrecisionSoft\Doctrine\Utility\Test\Repository;
 
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Platforms\AbstractPlatform;
 use Doctrine\DBAL\Result;
 use Doctrine\DBAL\Statement;
+use Doctrine\DBAL\Types\Type;
+use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Mapping\ClassMetadata;
 use Doctrine\ORM\Query\Expr\Join;
 use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
+use Doctrine\Persistence\ObjectManager;
 use Doctrine\Persistence\ObjectRepository;
 use Mockery;
 use Mockery\MockInterface;
@@ -23,6 +28,7 @@ use PrecisionSoft\Doctrine\Utility\Join\JoinCollection;
 use PrecisionSoft\Doctrine\Utility\Repository\AbstractRepository;
 use PrecisionSoft\Doctrine\Utility\Repository\DoctrineRepository;
 use PrecisionSoft\Doctrine\Utility\Repository\EmptyArrayFilterBehavior;
+use PrecisionSoft\Doctrine\Utility\Test\Repository\Fixture\BinaryUuidType;
 use PrecisionSoft\Symfony\Phpunit\MockDto;
 use PrecisionSoft\Symfony\Phpunit\TestCase\AbstractTestCase;
 use Psr\Log\LoggerInterface;
@@ -258,6 +264,221 @@ final class AbstractRepositoryTest extends AbstractTestCase
         );
 
         static::assertInstanceOf(Result::class, $executeResult);
+    }
+
+    public function testAttachGenericFiltersBindsUuidArrayAsBinary(): void
+    {
+        if (false === Type::hasType(BinaryUuidType::NAME)) {
+            Type::addType(BinaryUuidType::NAME, BinaryUuidType::class);
+        }
+
+        $uuids = [
+            '00000000-0000-0000-0000-000000000001',
+            '00000000-0000-0000-0000-000000000002',
+        ];
+        $expectedBinaryValues = \array_map(
+            static fn(string $uuid): string => \hex2bin(\str_replace('-', '', $uuid)),
+            $uuids,
+        );
+
+        $classMetadataMock = Mockery::mock(ClassMetadata::class);
+        $classMetadataMock->shouldReceive('getTypeOfField')
+            ->with('id')
+            ->andReturn(BinaryUuidType::NAME);
+        $classMetadataMock->shouldReceive('hasField')
+            ->with('id')
+            ->andReturn(true);
+
+        $abstractRepositoryMock = $this->mockRepositoryWithManager($classMetadataMock);
+
+        $queryBuilderMock = Mockery::mock(QueryBuilder::class);
+        $queryBuilderMock->shouldReceive('andWhere')
+            ->andReturnSelf();
+        $queryBuilderMock->shouldReceive('setParameter')
+            ->with('id', $expectedBinaryValues, ArrayParameterType::BINARY)
+            ->once()
+            ->andReturnSelf();
+
+        $reflectionMethod = new ReflectionMethod(AbstractRepository::class, 'attachGenericFilters');
+        $reflectionMethod->invoke($abstractRepositoryMock, $queryBuilderMock, ['id' => $uuids]);
+    }
+
+    public function testAttachGenericFiltersBindsIntegerArrayAsIntegerType(): void
+    {
+        $numbers = [1, 2, 3];
+
+        $classMetadataMock = Mockery::mock(ClassMetadata::class);
+        $classMetadataMock->shouldReceive('getTypeOfField')
+            ->with('position')
+            ->andReturn('integer');
+        $classMetadataMock->shouldReceive('hasField')
+            ->with('position')
+            ->andReturn(true);
+
+        $abstractRepositoryMock = $this->mockRepositoryWithManager($classMetadataMock);
+
+        $queryBuilderMock = Mockery::mock(QueryBuilder::class);
+        $queryBuilderMock->shouldReceive('andWhere')
+            ->andReturnSelf();
+        $queryBuilderMock->shouldReceive('setParameter')
+            ->with('position', $numbers, ArrayParameterType::INTEGER)
+            ->once()
+            ->andReturnSelf();
+
+        $reflectionMethod = new ReflectionMethod(AbstractRepository::class, 'attachGenericFilters');
+        $reflectionMethod->invoke($abstractRepositoryMock, $queryBuilderMock, ['position' => $numbers]);
+    }
+
+    public function testAttachGenericFiltersBindsStringArrayAsStringType(): void
+    {
+        $codes = ['alpha', 'beta'];
+
+        $classMetadataMock = Mockery::mock(ClassMetadata::class);
+        $classMetadataMock->shouldReceive('getTypeOfField')
+            ->with('code')
+            ->andReturn('string');
+        $classMetadataMock->shouldReceive('hasField')
+            ->with('code')
+            ->andReturn(true);
+
+        $abstractRepositoryMock = $this->mockRepositoryWithManager($classMetadataMock);
+
+        $queryBuilderMock = Mockery::mock(QueryBuilder::class);
+        $queryBuilderMock->shouldReceive('andWhere')
+            ->andReturnSelf();
+        $queryBuilderMock->shouldReceive('setParameter')
+            ->with('code', $codes, ArrayParameterType::STRING)
+            ->once()
+            ->andReturnSelf();
+
+        $reflectionMethod = new ReflectionMethod(AbstractRepository::class, 'attachGenericFilters');
+        $reflectionMethod->invoke($abstractRepositoryMock, $queryBuilderMock, ['code' => $codes]);
+    }
+
+    public function testAttachGenericFiltersBindsAssociationArrayWithoutType(): void
+    {
+        $ownerValues = ['owner-1', 'owner-2'];
+
+        $classMetadataMock = Mockery::mock(ClassMetadata::class);
+        $classMetadataMock->shouldReceive('getTypeOfField')
+            ->with('owner')
+            ->andReturn(null);
+        $classMetadataMock->shouldReceive('hasField')
+            ->with('owner')
+            ->andReturn(false);
+
+        $abstractRepositoryMock = $this->mockRepositoryWithManager($classMetadataMock);
+
+        $queryBuilderMock = Mockery::mock(QueryBuilder::class);
+        $queryBuilderMock->shouldReceive('andWhere')
+            ->andReturnSelf();
+
+        /** @info the owning-side association keeps the untyped binding — setParameter() is called with two arguments only */
+        $queryBuilderMock->shouldReceive('setParameter')
+            ->with('owner', $ownerValues)
+            ->once()
+            ->andReturnSelf();
+
+        $reflectionMethod = new ReflectionMethod(AbstractRepository::class, 'attachGenericFilters');
+        $reflectionMethod->invoke($abstractRepositoryMock, $queryBuilderMock, ['owner' => $ownerValues]);
+    }
+
+    public function testAttachGenericFiltersBindsSingleValuesWithoutType(): void
+    {
+        $abstractRepositoryMock = $this->get(AbstractRepository::class);
+        $abstractRepositoryMock->shouldAllowMockingProtectedMethods();
+
+        $uuid = '00000000-0000-0000-0000-000000000009';
+
+        $queryBuilderMock = Mockery::mock(QueryBuilder::class);
+        $queryBuilderMock->shouldReceive('andWhere')
+            ->andReturnSelf();
+
+        /** @info single-value `=` filters never resolve the manager: the binding stays untyped for uuid/int/string alike */
+        $queryBuilderMock->shouldReceive('setParameter')
+            ->with('id', $uuid)
+            ->once()
+            ->andReturnSelf();
+        $queryBuilderMock->shouldReceive('setParameter')
+            ->with('position', 5)
+            ->once()
+            ->andReturnSelf();
+        $queryBuilderMock->shouldReceive('setParameter')
+            ->with('code', 'active')
+            ->once()
+            ->andReturnSelf();
+
+        $reflectionMethod = new ReflectionMethod(AbstractRepository::class, 'attachGenericFilters');
+        $reflectionMethod->invoke(
+            $abstractRepositoryMock,
+            $queryBuilderMock,
+            ['id' => $uuid, 'position' => 5, 'code' => 'active'],
+        );
+    }
+
+    public function testAttachGenericFiltersBindsArrayWithoutTypeWhenManagerIsNotOrm(): void
+    {
+        $ids = ['id-1', 'id-2'];
+
+        $abstractRepositoryMock = $this->get(AbstractRepository::class);
+        $abstractRepositoryMock->shouldAllowMockingProtectedMethods();
+        $abstractRepositoryMock->shouldReceive('getEntityClass')
+            ->andReturn('Entity');
+
+        $objectManagerMock = Mockery::mock(ObjectManager::class);
+
+        $managerRegistryMock = Mockery::mock(ManagerRegistry::class);
+        $managerRegistryMock->shouldReceive('getManagerForClass')
+            ->with('Entity')
+            ->andReturn($objectManagerMock);
+
+        $abstractRepositoryMock->setManagerRegistry($managerRegistryMock);
+
+        $queryBuilderMock = Mockery::mock(QueryBuilder::class);
+        $queryBuilderMock->shouldReceive('andWhere')
+            ->andReturnSelf();
+
+        /** @info a non-ORM manager cannot resolve field types, so the binding stays untyped — exactly the pre-fix behavior, no exception */
+        $queryBuilderMock->shouldReceive('setParameter')
+            ->with('id', $ids)
+            ->once()
+            ->andReturnSelf();
+
+        $reflectionMethod = new ReflectionMethod(AbstractRepository::class, 'attachGenericFilters');
+        $reflectionMethod->invoke($abstractRepositoryMock, $queryBuilderMock, ['id' => $ids]);
+    }
+
+    /**
+     * @param ClassMetadata $classMetadataMock
+     *
+     * @return AbstractRepository&MockInterface
+     */
+    private function mockRepositoryWithManager(MockInterface $classMetadataMock): MockInterface
+    {
+        $abstractRepositoryMock = $this->get(AbstractRepository::class);
+        $abstractRepositoryMock->shouldAllowMockingProtectedMethods();
+        $abstractRepositoryMock->shouldReceive('getEntityClass')
+            ->andReturn('Entity');
+
+        $connectionMock = Mockery::mock(Connection::class);
+        $connectionMock->shouldReceive('getDatabasePlatform')
+            ->andReturn(Mockery::mock(AbstractPlatform::class));
+
+        $entityManagerMock = Mockery::mock(EntityManagerInterface::class);
+        $entityManagerMock->shouldReceive('getClassMetadata')
+            ->with('Entity')
+            ->andReturn($classMetadataMock);
+        $entityManagerMock->shouldReceive('getConnection')
+            ->andReturn($connectionMock);
+
+        $managerRegistryMock = Mockery::mock(ManagerRegistry::class);
+        $managerRegistryMock->shouldReceive('getManagerForClass')
+            ->with('Entity')
+            ->andReturn($entityManagerMock);
+
+        $abstractRepositoryMock->setManagerRegistry($managerRegistryMock);
+
+        return $abstractRepositoryMock;
     }
 
     /**
