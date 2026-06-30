@@ -426,7 +426,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `MySqlWalker` — custom SQL walker adding `USE INDEX` / `IGNORE INDEX` / `FORCE INDEX` / `FOR UPDATE` hints
 - Dev infrastructure: Docker container, git hooks (pre-commit with php-cs-fixer + lint + PHPUnit), PHP-CS-Fixer configuration, PHPUnit 9 test scaffolding
 
-[Unreleased]: https://github.com/precision-soft/doctrine-utility/compare/v4.1.8...HEAD
+[Unreleased]: https://github.com/precision-soft/doctrine-utility/compare/v4.1.9...HEAD
+
+[v4.1.9]: https://github.com/precision-soft/doctrine-utility/compare/v4.1.8...v4.1.9
 
 [v4.1.8]: https://github.com/precision-soft/doctrine-utility/compare/v4.1.7...v4.1.8
 
