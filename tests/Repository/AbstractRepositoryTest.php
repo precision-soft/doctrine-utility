@@ -29,6 +29,8 @@ use PrecisionSoft\Doctrine\Utility\Repository\AbstractRepository;
 use PrecisionSoft\Doctrine\Utility\Repository\DoctrineRepository;
 use PrecisionSoft\Doctrine\Utility\Repository\EmptyArrayFilterBehavior;
 use PrecisionSoft\Doctrine\Utility\Test\Repository\Fixture\BinaryUuidType;
+use PrecisionSoft\Doctrine\Utility\Test\Repository\Fixture\IntBackedEnum;
+use PrecisionSoft\Doctrine\Utility\Test\Repository\Fixture\StringBackedEnum;
 use PrecisionSoft\Symfony\Phpunit\MockDto;
 use PrecisionSoft\Symfony\Phpunit\TestCase\AbstractTestCase;
 use Psr\Log\LoggerInterface;
@@ -353,6 +355,85 @@ final class AbstractRepositoryTest extends AbstractTestCase
 
         $reflectionMethod = new ReflectionMethod(AbstractRepository::class, 'attachGenericFilters');
         $reflectionMethod->invoke($abstractRepositoryMock, $queryBuilderMock, ['code' => $codes]);
+    }
+
+    public function testAttachGenericFiltersBindsIntBackedEnumArrayAsIntegerType(): void
+    {
+        $statuses = [IntBackedEnum::First, IntBackedEnum::Second];
+
+        $classMetadataMock = Mockery::mock(ClassMetadata::class);
+        $classMetadataMock->shouldReceive('getTypeOfField')
+            ->with('status')
+            ->andReturn('smallint');
+        $classMetadataMock->shouldReceive('hasField')
+            ->with('status')
+            ->andReturn(true);
+
+        $abstractRepositoryMock = $this->mockRepositoryWithManager($classMetadataMock);
+
+        $queryBuilderMock = Mockery::mock(QueryBuilder::class);
+        $queryBuilderMock->shouldReceive('andWhere')
+            ->andReturnSelf();
+        $queryBuilderMock->shouldReceive('setParameter')
+            ->with('status', [1, 2], ArrayParameterType::INTEGER)
+            ->once()
+            ->andReturnSelf();
+
+        $reflectionMethod = new ReflectionMethod(AbstractRepository::class, 'attachGenericFilters');
+        $reflectionMethod->invoke($abstractRepositoryMock, $queryBuilderMock, ['status' => $statuses]);
+    }
+
+    public function testAttachGenericFiltersBindsStringBackedEnumArrayAsStringType(): void
+    {
+        $kinds = [StringBackedEnum::Alpha, StringBackedEnum::Beta];
+
+        $classMetadataMock = Mockery::mock(ClassMetadata::class);
+        $classMetadataMock->shouldReceive('getTypeOfField')
+            ->with('kind')
+            ->andReturn('string');
+        $classMetadataMock->shouldReceive('hasField')
+            ->with('kind')
+            ->andReturn(true);
+
+        $abstractRepositoryMock = $this->mockRepositoryWithManager($classMetadataMock);
+
+        $queryBuilderMock = Mockery::mock(QueryBuilder::class);
+        $queryBuilderMock->shouldReceive('andWhere')
+            ->andReturnSelf();
+        $queryBuilderMock->shouldReceive('setParameter')
+            ->with('kind', ['alpha', 'beta'], ArrayParameterType::STRING)
+            ->once()
+            ->andReturnSelf();
+
+        $reflectionMethod = new ReflectionMethod(AbstractRepository::class, 'attachGenericFilters');
+        $reflectionMethod->invoke($abstractRepositoryMock, $queryBuilderMock, ['kind' => $kinds]);
+    }
+
+    public function testAttachGenericFiltersBindsEnumArrayByItsBackingNotTheColumnBindingType(): void
+    {
+        /** @info string-backed enum on a field whose Doctrine type binds INTEGER: the array type must follow the scalar backing (STRING), not the column binding type */
+        $kinds = [StringBackedEnum::Alpha, StringBackedEnum::Beta];
+
+        $classMetadataMock = Mockery::mock(ClassMetadata::class);
+        $classMetadataMock->shouldReceive('getTypeOfField')
+            ->with('kind')
+            ->andReturn('integer');
+        $classMetadataMock->shouldReceive('hasField')
+            ->with('kind')
+            ->andReturn(true);
+
+        $abstractRepositoryMock = $this->mockRepositoryWithManager($classMetadataMock);
+
+        $queryBuilderMock = Mockery::mock(QueryBuilder::class);
+        $queryBuilderMock->shouldReceive('andWhere')
+            ->andReturnSelf();
+        $queryBuilderMock->shouldReceive('setParameter')
+            ->with('kind', ['alpha', 'beta'], ArrayParameterType::STRING)
+            ->once()
+            ->andReturnSelf();
+
+        $reflectionMethod = new ReflectionMethod(AbstractRepository::class, 'attachGenericFilters');
+        $reflectionMethod->invoke($abstractRepositoryMock, $queryBuilderMock, ['kind' => $kinds]);
     }
 
     public function testAttachGenericFiltersBindsAssociationArrayWithoutType(): void

@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v4.1.9] - 2026-06-30 - Bind backed-enum array IN filters by their scalar backing
+
+### Fixed
+
+- `AbstractRepository::attachArrayFilter()` — array filter values that are `BackedEnum` instances are now reduced to their scalar backing value (the way Doctrine ORM does for untyped parameters in `Query::processParameterValue`) and bound with the matching `ArrayParameterType` derived from that scalar (`INTEGER` for an int-backed enum, `STRING` for a string-backed enum). This is a regression from v4.1.8: that release converts each array value through the mapped field's Doctrine type and binds with an explicit `ArrayParameterType`, but a field's enum-backed Doctrine type does not unwrap the enum instance, so the enum object reached the driver and `findBy(['status' => [SomeEnum::Case]])` / any `... IN (:param)` over an enum column threw `Object of class ... could not be converted to string` at bind time. Non-enum array values (including the binary-`uuid` `IN` fix from v4.1.8) keep the field's Doctrine-type conversion and binding type, so that path is unchanged. No public or protected method signatures changed
+
+### Added
+
+- `tests/Repository/AbstractRepositoryTest.php` — cases covering int-backed and string-backed enum array `IN` binding (scalar values, `ArrayParameterType::INTEGER` / `ArrayParameterType::STRING`)
+- `tests/Repository/Fixture/IntBackedEnum.php`, `tests/Repository/Fixture/StringBackedEnum.php` — test-only backed enums for the cases above
+
 ## [v4.1.8] - 2026-06-29 - Bind array IN filters with the field's Doctrine type
 
 ### Fixed

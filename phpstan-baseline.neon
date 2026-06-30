@@ -291,7 +291,7 @@ parameters:
 		-
 			message: '#^Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage\:\:andReturnSelf\(\)\.$#'
 			identifier: method.notFound
-			count: 6
+			count: 9
 			path: tests/Repository/AbstractRepositoryTest.php
 
 		-
@@ -315,7 +315,7 @@ parameters:
 		-
 			message: '#^Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage\:\:with\(\)\.$#'
 			identifier: method.notFound
-			count: 27
+			count: 36
 			path: tests/Repository/AbstractRepositoryTest.php
 
 		-
