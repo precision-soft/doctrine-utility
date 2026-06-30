@@ -409,6 +409,33 @@ final class AbstractRepositoryTest extends AbstractTestCase
         $reflectionMethod->invoke($abstractRepositoryMock, $queryBuilderMock, ['kind' => $kinds]);
     }
 
+    public function testAttachGenericFiltersBindsEnumArrayByItsBackingNotTheColumnBindingType(): void
+    {
+        /** @info string-backed enum on a field whose Doctrine type binds INTEGER: the array type must follow the scalar backing (STRING), not the column binding type */
+        $kinds = [StringBackedEnum::Alpha, StringBackedEnum::Beta];
+
+        $classMetadataMock = Mockery::mock(ClassMetadata::class);
+        $classMetadataMock->shouldReceive('getTypeOfField')
+            ->with('kind')
+            ->andReturn('integer');
+        $classMetadataMock->shouldReceive('hasField')
+            ->with('kind')
+            ->andReturn(true);
+
+        $abstractRepositoryMock = $this->mockRepositoryWithManager($classMetadataMock);
+
+        $queryBuilderMock = Mockery::mock(QueryBuilder::class);
+        $queryBuilderMock->shouldReceive('andWhere')
+            ->andReturnSelf();
+        $queryBuilderMock->shouldReceive('setParameter')
+            ->with('kind', ['alpha', 'beta'], ArrayParameterType::STRING)
+            ->once()
+            ->andReturnSelf();
+
+        $reflectionMethod = new ReflectionMethod(AbstractRepository::class, 'attachGenericFilters');
+        $reflectionMethod->invoke($abstractRepositoryMock, $queryBuilderMock, ['kind' => $kinds]);
+    }
+
     public function testAttachGenericFiltersBindsAssociationArrayWithoutType(): void
     {
         $ownerValues = ['owner-1', 'owner-2'];
