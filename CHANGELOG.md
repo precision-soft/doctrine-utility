@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v4.1.10] - 2026-06-30 - Narrow array IN binary conversion to binary-bound columns
+
+### Fixed
+
+- `AbstractRepository::attachArrayFilter()` — the array `IN (:param)` conversion introduced in v4.1.8 is now applied **only** to fields whose Doctrine type binds as `ParameterType::BINARY` (e.g. a `uuid` stored as `BINARY(16)`, the original motivation). This is a regression fix: v4.1.8 ran **every** mapped field's array values through `Type::getType(...)->convertToDatabaseValue()`, which broke fields whose values are not already in the type's expected PHP shape — e.g. a `date` column receiving raw `'YYYY-MM-DD'` strings threw `Could not convert PHP value '2026-07-04' to type Doctrine\DBAL\Types\DateType. Expected one of the following types: null, DateTime.` (`InvalidType`), because `DateType::convertToDatabaseValue()` expects a `\DateTimeInterface`. Non-binary mapped fields now revert to the pre-v4.1.8 untyped binding and let Doctrine resolve the type — exactly as single-value `=` filters do — including unwrapping `BackedEnum` instances at query execution. The binary-`uuid` `IN` fix from v4.1.8 is preserved. No public or protected method signatures changed, so existing subclass overrides keep working
+
+### Changed
+
+- `AbstractRepository::attachArrayFilter()` — removed the explicit backed-enum unwrapping added in v4.1.9 and the `ArrayParameterType` `match` over the field's binding type; both became dead code once conversion is gated to binary-bound fields, since `BackedEnum` values now flow through the untyped binding that Doctrine already unwraps. The `BinaryUuidType` regression coverage is unchanged
+
+### Added
+
+- `tests/Repository/AbstractRepositoryTest.php` — regression case for a `date`-typed field receiving raw string values, asserting an untyped two-argument `setParameter()` binding (would throw `InvalidType` under v4.1.8)
+
 ## [v4.1.9] - 2026-06-30 - Bind backed-enum array IN filters by their scalar backing
 
 ### Fixed
@@ -426,7 +440,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `MySqlWalker` — custom SQL walker adding `USE INDEX` / `IGNORE INDEX` / `FORCE INDEX` / `FOR UPDATE` hints
 - Dev infrastructure: Docker container, git hooks (pre-commit with php-cs-fixer + lint + PHPUnit), PHP-CS-Fixer configuration, PHPUnit 9 test scaffolding
 
-[Unreleased]: https://github.com/precision-soft/doctrine-utility/compare/v4.1.9...HEAD
+[Unreleased]: https://github.com/precision-soft/doctrine-utility/compare/v4.1.10...HEAD
+
+[v4.1.10]: https://github.com/precision-soft/doctrine-utility/compare/v4.1.9...v4.1.10
 
 [v4.1.9]: https://github.com/precision-soft/doctrine-utility/compare/v4.1.8...v4.1.9
 

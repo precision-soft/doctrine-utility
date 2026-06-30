@@ -8,7 +8,6 @@ declare(strict_types=1);
 
 namespace PrecisionSoft\Doctrine\Utility\Repository;
 
-use BackedEnum;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\ParameterType;
@@ -307,10 +306,11 @@ abstract class AbstractRepository
     }
 
     /**
-     * Binds an array filter as an `IN (...)` clause. For mapped fields the value is converted with the
-     * field's Doctrine type and bound with the matching ArrayParameterType so binary columns (e.g. a `uuid`
-     * stored as BINARY(16)) match instead of being bound as their string representation. Associations and
-     * unmapped keys keep the untyped binding.
+     * Binds an array filter as an `IN (...)` clause. Only fields whose Doctrine type binds as
+     * `ParameterType::BINARY` (e.g. a `uuid` stored as BINARY(16)) have their values converted with the
+     * field's type and bound as `ArrayParameterType::BINARY`, so they match instead of being bound as their
+     * string representation. Every other field — associations, unmapped keys, and all non-binary mapped
+     * fields — keeps the untyped binding and lets Doctrine resolve the type as it does for single values.
      *
      * @param non-empty-array<array-key, mixed> $filterValue
      */
@@ -339,38 +339,22 @@ abstract class AbstractRepository
             return;
         }
 
-        $platform = $manager->getConnection()->getDatabasePlatform();
         $doctrineType = Type::getType($fieldType);
 
-        $enumArrayParameterType = null;
+        /** @info only binary-bound columns (e.g. a uuid stored as BINARY(16)) need their values converted and bound as BINARY to match; every other field keeps the untyped binding so Doctrine resolves the type as it did before — including unwrapping backed enums and binding date/string/int values from their raw representation */
+        if (ParameterType::BINARY !== $doctrineType->getBindingType()) {
+            $queryBuilder->setParameter($filterName, $filterValue);
+
+            return;
+        }
+
+        $platform = $manager->getConnection()->getDatabasePlatform();
         $databaseValues = \array_map(
-            static function (mixed $value) use ($doctrineType, $platform, &$enumArrayParameterType): mixed {
-                /**
-                 * @info a backed enum is reduced to its scalar backing here, the way Doctrine ORM does for
-                 * untyped parameters (Query::processParameterValue). The mapped field type does not unwrap the
-                 * enum instance, so otherwise the enum object would reach the driver and fail to bind. The array
-                 * parameter type follows the scalar backing (int or string), not the column's own binding type.
-                 */
-                if ($value instanceof BackedEnum) {
-                    $enumArrayParameterType = \is_int($value->value)
-                        ? ArrayParameterType::INTEGER
-                        : ArrayParameterType::STRING;
-
-                    return $value->value;
-                }
-
-                return $doctrineType->convertToDatabaseValue($value, $platform);
-            },
+            static fn(mixed $value): mixed => $doctrineType->convertToDatabaseValue($value, $platform),
             \array_values($filterValue),
         );
 
-        $arrayParameterType = $enumArrayParameterType ?? match ($doctrineType->getBindingType()) {
-            ParameterType::INTEGER => ArrayParameterType::INTEGER,
-            ParameterType::BINARY => ArrayParameterType::BINARY,
-            default => ArrayParameterType::STRING,
-        };
-
-        $queryBuilder->setParameter($filterName, $databaseValues, $arrayParameterType);
+        $queryBuilder->setParameter($filterName, $databaseValues, ArrayParameterType::BINARY);
     }
 
     /**

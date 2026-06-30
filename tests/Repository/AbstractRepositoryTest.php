@@ -305,7 +305,7 @@ final class AbstractRepositoryTest extends AbstractTestCase
         $reflectionMethod->invoke($abstractRepositoryMock, $queryBuilderMock, ['id' => $uuids]);
     }
 
-    public function testAttachGenericFiltersBindsIntegerArrayAsIntegerType(): void
+    public function testAttachGenericFiltersBindsIntegerArrayWithoutType(): void
     {
         $numbers = [1, 2, 3];
 
@@ -322,8 +322,10 @@ final class AbstractRepositoryTest extends AbstractTestCase
         $queryBuilderMock = Mockery::mock(QueryBuilder::class);
         $queryBuilderMock->shouldReceive('andWhere')
             ->andReturnSelf();
+
+        /** @info a non-binary mapped field keeps the untyped binding — Doctrine infers the array type as it did before, setParameter() is called with two arguments only */
         $queryBuilderMock->shouldReceive('setParameter')
-            ->with('position', $numbers, ArrayParameterType::INTEGER)
+            ->with('position', $numbers)
             ->once()
             ->andReturnSelf();
 
@@ -331,7 +333,7 @@ final class AbstractRepositoryTest extends AbstractTestCase
         $reflectionMethod->invoke($abstractRepositoryMock, $queryBuilderMock, ['position' => $numbers]);
     }
 
-    public function testAttachGenericFiltersBindsStringArrayAsStringType(): void
+    public function testAttachGenericFiltersBindsStringArrayWithoutType(): void
     {
         $codes = ['alpha', 'beta'];
 
@@ -349,7 +351,7 @@ final class AbstractRepositoryTest extends AbstractTestCase
         $queryBuilderMock->shouldReceive('andWhere')
             ->andReturnSelf();
         $queryBuilderMock->shouldReceive('setParameter')
-            ->with('code', $codes, ArrayParameterType::STRING)
+            ->with('code', $codes)
             ->once()
             ->andReturnSelf();
 
@@ -357,8 +359,36 @@ final class AbstractRepositoryTest extends AbstractTestCase
         $reflectionMethod->invoke($abstractRepositoryMock, $queryBuilderMock, ['code' => $codes]);
     }
 
-    public function testAttachGenericFiltersBindsIntBackedEnumArrayAsIntegerType(): void
+    public function testAttachGenericFiltersBindsDateStringArrayWithoutType(): void
     {
+        /** @info regression: a date-typed field receiving raw strings must bind untyped — converting them with DateType::convertToDatabaseValue() would throw InvalidType (expects \DateTimeInterface) */
+        $dates = ['2026-07-04', '2026-07-11'];
+
+        $classMetadataMock = Mockery::mock(ClassMetadata::class);
+        $classMetadataMock->shouldReceive('getTypeOfField')
+            ->with('date')
+            ->andReturn('date');
+        $classMetadataMock->shouldReceive('hasField')
+            ->with('date')
+            ->andReturn(true);
+
+        $abstractRepositoryMock = $this->mockRepositoryWithManager($classMetadataMock);
+
+        $queryBuilderMock = Mockery::mock(QueryBuilder::class);
+        $queryBuilderMock->shouldReceive('andWhere')
+            ->andReturnSelf();
+        $queryBuilderMock->shouldReceive('setParameter')
+            ->with('date', $dates)
+            ->once()
+            ->andReturnSelf();
+
+        $reflectionMethod = new ReflectionMethod(AbstractRepository::class, 'attachGenericFilters');
+        $reflectionMethod->invoke($abstractRepositoryMock, $queryBuilderMock, ['date' => $dates]);
+    }
+
+    public function testAttachGenericFiltersBindsIntBackedEnumArrayWithoutType(): void
+    {
+        /** @info a smallint field binds INTEGER, not BINARY, so the enum array keeps the untyped binding — Doctrine unwraps the backed enums to their scalar backing at query execution, as it did before */
         $statuses = [IntBackedEnum::First, IntBackedEnum::Second];
 
         $classMetadataMock = Mockery::mock(ClassMetadata::class);
@@ -375,7 +405,7 @@ final class AbstractRepositoryTest extends AbstractTestCase
         $queryBuilderMock->shouldReceive('andWhere')
             ->andReturnSelf();
         $queryBuilderMock->shouldReceive('setParameter')
-            ->with('status', [1, 2], ArrayParameterType::INTEGER)
+            ->with('status', $statuses)
             ->once()
             ->andReturnSelf();
 
@@ -383,7 +413,7 @@ final class AbstractRepositoryTest extends AbstractTestCase
         $reflectionMethod->invoke($abstractRepositoryMock, $queryBuilderMock, ['status' => $statuses]);
     }
 
-    public function testAttachGenericFiltersBindsStringBackedEnumArrayAsStringType(): void
+    public function testAttachGenericFiltersBindsStringBackedEnumArrayWithoutType(): void
     {
         $kinds = [StringBackedEnum::Alpha, StringBackedEnum::Beta];
 
@@ -401,34 +431,7 @@ final class AbstractRepositoryTest extends AbstractTestCase
         $queryBuilderMock->shouldReceive('andWhere')
             ->andReturnSelf();
         $queryBuilderMock->shouldReceive('setParameter')
-            ->with('kind', ['alpha', 'beta'], ArrayParameterType::STRING)
-            ->once()
-            ->andReturnSelf();
-
-        $reflectionMethod = new ReflectionMethod(AbstractRepository::class, 'attachGenericFilters');
-        $reflectionMethod->invoke($abstractRepositoryMock, $queryBuilderMock, ['kind' => $kinds]);
-    }
-
-    public function testAttachGenericFiltersBindsEnumArrayByItsBackingNotTheColumnBindingType(): void
-    {
-        /** @info string-backed enum on a field whose Doctrine type binds INTEGER: the array type must follow the scalar backing (STRING), not the column binding type */
-        $kinds = [StringBackedEnum::Alpha, StringBackedEnum::Beta];
-
-        $classMetadataMock = Mockery::mock(ClassMetadata::class);
-        $classMetadataMock->shouldReceive('getTypeOfField')
-            ->with('kind')
-            ->andReturn('integer');
-        $classMetadataMock->shouldReceive('hasField')
-            ->with('kind')
-            ->andReturn(true);
-
-        $abstractRepositoryMock = $this->mockRepositoryWithManager($classMetadataMock);
-
-        $queryBuilderMock = Mockery::mock(QueryBuilder::class);
-        $queryBuilderMock->shouldReceive('andWhere')
-            ->andReturnSelf();
-        $queryBuilderMock->shouldReceive('setParameter')
-            ->with('kind', ['alpha', 'beta'], ArrayParameterType::STRING)
+            ->with('kind', $kinds)
             ->once()
             ->andReturnSelf();
 
