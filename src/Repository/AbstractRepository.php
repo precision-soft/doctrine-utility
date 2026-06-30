@@ -8,6 +8,7 @@ declare(strict_types=1);
 
 namespace PrecisionSoft\Doctrine\Utility\Repository;
 
+use BackedEnum;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\ParameterType;
@@ -340,12 +341,30 @@ abstract class AbstractRepository
 
         $platform = $manager->getConnection()->getDatabasePlatform();
         $doctrineType = Type::getType($fieldType);
+
+        $enumArrayParameterType = null;
         $databaseValues = \array_map(
-            static fn(mixed $value): mixed => $doctrineType->convertToDatabaseValue($value, $platform),
+            static function (mixed $value) use ($doctrineType, $platform, &$enumArrayParameterType): mixed {
+                /**
+                 * @info a backed enum is reduced to its scalar backing here, the way Doctrine ORM does for
+                 * untyped parameters (Query::processParameterValue). The mapped field type does not unwrap the
+                 * enum instance, so otherwise the enum object would reach the driver and fail to bind. The array
+                 * parameter type follows the scalar backing (int or string), not the column's own binding type.
+                 */
+                if ($value instanceof BackedEnum) {
+                    $enumArrayParameterType = \is_int($value->value)
+                        ? ArrayParameterType::INTEGER
+                        : ArrayParameterType::STRING;
+
+                    return $value->value;
+                }
+
+                return $doctrineType->convertToDatabaseValue($value, $platform);
+            },
             \array_values($filterValue),
         );
 
-        $arrayParameterType = match ($doctrineType->getBindingType()) {
+        $arrayParameterType = $enumArrayParameterType ?? match ($doctrineType->getBindingType()) {
             ParameterType::INTEGER => ArrayParameterType::INTEGER,
             ParameterType::BINARY => ArrayParameterType::BINARY,
             default => ArrayParameterType::STRING,
