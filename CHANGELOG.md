@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v4.1.11] - 2026-07-02 - Parse date/time array IN filters by the column's Doctrine type
+
+### Fixed
+
+- `AbstractRepository::attachArrayFilter()` — array `IN (:param)` filters over a date/time/interval column (`date`, `datetime`, `datetimetz`, `time`, their immutable variants, and `dateinterval`) now convert each `DateTimeInterface` / `DateInterval` value through the mapped field's Doctrine type and bind the array as `ArrayParameterType::STRING`. Previously such objects fell through to the untyped binding restored in v4.1.10, where DBAL has no date array parameter type, so the raw object reached the driver and `findBy(['date' => [new DateTimeImmutable(...)]])` / any `... IN (:param)` over a date/time column failed to stringify. The branch is selected by the field's Doctrine type (via the `Php{Date,DateTime,Time}MappingType` interfaces plus `DateIntervalType`), **not** by inspecting the values, so the column accepts strings and objects interchangeably — a `date` filter takes both `'2026-07-04'` and `new DateTime('2026-07-04')`, and mixed arrays convert only the objects while strings pass through untouched. Single-value `=` filters were already correct and remain unchanged. `DateTimeImmutable` values against a mutable date/time type (and vice versa) are reconciled by flipping the object's mutability before conversion — DBAL's `DateType`/`DateTimeType` accept only their own mutability and throw `InvalidType` otherwise. If any element cannot be converted, the whole filter falls back to the pre-existing untyped binding, so this never binds worse than before. No public or protected method signatures changed, so existing subclass overrides keep working
+
+### Changed
+
+- `AbstractRepository::attachArrayFilter()` — restructured into a linear `binary → date/time → default` branch order keyed off the field's Doctrine type, each an explicit early return followed by a single default untyped binding. Date/time detection and value parsing live in the private helpers `isDateTimeArrayColumn()` and `parseDateTimeArrayFilterValue()`. A `date`-column array of raw `'YYYY-MM-DD'` strings now binds as an explicit `ArrayParameterType::STRING` instead of relying on Doctrine's untyped inference — the resulting SQL is identical. Behavior is otherwise unchanged for binary `uuid`, backed enums, and raw scalars/strings on non-date columns
+
+### Added
+
+- `tests/Repository/AbstractRepositoryTest.php` — regression cases for `DateTime[]`, `DateTimeImmutable[]`, and mixed `string`/`DateTime[]` array `IN` filters over a `date` field (converted through the field type, bound `ArrayParameterType::STRING`), and for a date-object array over a non-date column keeping the untyped two-argument binding
+
 ## [v4.1.10] - 2026-06-30 - Narrow array IN binary conversion to binary-bound columns
 
 ### Fixed
@@ -440,7 +454,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `MySqlWalker` — custom SQL walker adding `USE INDEX` / `IGNORE INDEX` / `FORCE INDEX` / `FOR UPDATE` hints
 - Dev infrastructure: Docker container, git hooks (pre-commit with php-cs-fixer + lint + PHPUnit), PHP-CS-Fixer configuration, PHPUnit 9 test scaffolding
 
-[Unreleased]: https://github.com/precision-soft/doctrine-utility/compare/v4.1.10...HEAD
+[Unreleased]: https://github.com/precision-soft/doctrine-utility/compare/v4.1.11...HEAD
+
+[v4.1.11]: https://github.com/precision-soft/doctrine-utility/compare/v4.1.10...v4.1.11
 
 [v4.1.10]: https://github.com/precision-soft/doctrine-utility/compare/v4.1.9...v4.1.10
 

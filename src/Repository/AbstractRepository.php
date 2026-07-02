@@ -8,10 +8,20 @@ declare(strict_types=1);
 
 namespace PrecisionSoft\Doctrine\Utility\Repository;
 
+use DateInterval;
+use DateTime;
+use DateTimeImmutable;
+use DateTimeInterface;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Platforms\AbstractPlatform;
 use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Result;
+use Doctrine\DBAL\Types\ConversionException;
+use Doctrine\DBAL\Types\DateIntervalType;
+use Doctrine\DBAL\Types\PhpDateMappingType;
+use Doctrine\DBAL\Types\PhpDateTimeMappingType;
+use Doctrine\DBAL\Types\PhpTimeMappingType;
 use Doctrine\DBAL\Types\Type;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Query\Expr\Join;
@@ -306,11 +316,23 @@ abstract class AbstractRepository
     }
 
     /**
-     * Binds an array filter as an `IN (...)` clause. Only fields whose Doctrine type binds as
-     * `ParameterType::BINARY` (e.g. a `uuid` stored as BINARY(16)) have their values converted with the
-     * field's type and bound as `ArrayParameterType::BINARY`, so they match instead of being bound as their
-     * string representation. Every other field — associations, unmapped keys, and all non-binary mapped
-     * fields — keeps the untyped binding and lets Doctrine resolve the type as it does for single values.
+     * Binds an array filter as an `IN (...)` clause, choosing the binding in this order:
+     *
+     * 1. Binary-bound columns (e.g. a `uuid` stored as BINARY(16)) convert every value with the field's type
+     *    and bind as `ArrayParameterType::BINARY`, so they match instead of being bound as their string
+     *    representation.
+     * 2. Date/time/interval columns (`date`, `datetime`, `datetimetz`, `time`, their immutable variants, and
+     *    `dateinterval`) are the only genuine gap: Doctrine converts a single value through the field type, but
+     *    DBAL has no array parameter type for dates, so an object bound inside an array reaches the driver
+     *    unconverted and fails to stringify. The field's Doctrine type — not the params — selects this branch;
+     *    each value is then parsed, with date/time objects converted to the column's scalar representation and
+     *    strings/other scalars left untouched, so the column accepts both `'2026-07-04'` and
+     *    `new DateTime('2026-07-04')`. The array is bound as `ArrayParameterType::STRING`. If any element cannot
+     *    be converted (a value the type rejects even after matching mutability), the filter falls through to
+     *    the default binding, so this can never bind worse than before.
+     * 3. Every other field keeps the untyped binding and lets Doctrine resolve the type as it does for single
+     *    values — including unwrapping backed enums and binding scalar/string/int values from their raw
+     *    representation. Associations, unmapped keys, and non-ORM managers land here too.
      *
      * @param non-empty-array<array-key, mixed> $filterValue
      */
@@ -340,21 +362,80 @@ abstract class AbstractRepository
         }
 
         $doctrineType = Type::getType($fieldType);
+        $platform = $manager->getConnection()->getDatabasePlatform();
 
-        /** @info only binary-bound columns (e.g. a uuid stored as BINARY(16)) need their values converted and bound as BINARY to match; every other field keeps the untyped binding so Doctrine resolves the type as it did before — including unwrapping backed enums and binding date/string/int values from their raw representation */
-        if (ParameterType::BINARY !== $doctrineType->getBindingType()) {
-            $queryBuilder->setParameter($filterName, $filterValue);
+        /** @info binary-bound columns (e.g. a uuid stored as BINARY(16)) must have every value converted and bound as BINARY to match instead of being bound as their string representation */
+        if (ParameterType::BINARY === $doctrineType->getBindingType()) {
+            $databaseValues = \array_map(
+                static fn(mixed $value): mixed => $doctrineType->convertToDatabaseValue($value, $platform),
+                \array_values($filterValue),
+            );
+
+            $queryBuilder->setParameter($filterName, $databaseValues, ArrayParameterType::BINARY);
 
             return;
         }
 
-        $platform = $manager->getConnection()->getDatabasePlatform();
-        $databaseValues = \array_map(
-            static fn(mixed $value): mixed => $doctrineType->convertToDatabaseValue($value, $platform),
-            \array_values($filterValue),
-        );
+        /** @info date/time/interval columns are the only genuine gap: Doctrine converts a single value through the field type, but DBAL has no array parameter type for dates, so an object bound inside an array reaches the driver unconverted and fails to stringify. The field's Doctrine type — not the params — decides this: on such a column every value is parsed (date/time objects converted to the column's scalar representation, strings and other scalars left untouched) so a date column accepts both '2026-07-04' and new DateTime('2026-07-04'), and the array is bound as STRING (every date/time/interval type binds as STRING) */
+        if (true === $this->isDateTimeArrayColumn($doctrineType)) {
+            try {
+                $databaseValues = \array_map(
+                    fn(mixed $value): mixed => $this->parseDateTimeArrayFilterValue($value, $doctrineType, $platform),
+                    \array_values($filterValue),
+                );
 
-        $queryBuilder->setParameter($filterName, $databaseValues, ArrayParameterType::BINARY);
+                $queryBuilder->setParameter($filterName, $databaseValues, ArrayParameterType::STRING);
+
+                return;
+            } catch (ConversionException) {
+                /** @info an element the field's Doctrine type rejects outright (even after matching mutability) — fall through to the untyped binding below so this never binds worse than before the date/time handling was added */
+            }
+        }
+
+        /** @info default: every other column keeps the untyped binding and lets Doctrine resolve the type exactly as it does for single values — including unwrapping backed enums and binding scalar/string/int values from their raw representation. Associations, unmapped keys, and non-ORM managers land here too; so does the fall-through when date/time conversion fails */
+        $queryBuilder->setParameter($filterName, $filterValue);
+    }
+
+    /**
+     * A field is a date/time/interval column when its Doctrine type maps to a PHP date/time object — the case DBAL's
+     * array parameter binding cannot convert on its own. Detected by the type's mapping interface (`date`, `datetime`,
+     * `datetimetz`, `time` and their immutable variants) plus the interval type, never by inspecting the filter values.
+     */
+    private function isDateTimeArrayColumn(Type $doctrineType): bool
+    {
+        return $doctrineType instanceof PhpDateMappingType
+            || $doctrineType instanceof PhpDateTimeMappingType
+            || $doctrineType instanceof PhpTimeMappingType
+            || $doctrineType instanceof DateIntervalType;
+    }
+
+    /**
+     * @throws ConversionException if the field's Doctrine type cannot convert the value even after matching its mutability
+     */
+    private function parseDateTimeArrayFilterValue(
+        mixed $value,
+        Type $doctrineType,
+        AbstractPlatform $platform,
+    ): mixed {
+        /** @info strings and other scalars (e.g. a raw 'YYYY-MM-DD' passed for a date column) are already bindable and pass through untouched; only date/time objects need converting to the column's scalar representation */
+        if (false === ($value instanceof DateTimeInterface) && false === ($value instanceof DateInterval)) {
+            return $value;
+        }
+
+        try {
+            return $doctrineType->convertToDatabaseValue($value, $platform);
+        } catch (ConversionException $conversionException) {
+            /** @info mutable date types reject DateTimeImmutable and vice versa; flip the mutability to match the field's type, keeping the same instant, then convert to the canonical column representation */
+            if ($value instanceof DateTimeImmutable) {
+                return $doctrineType->convertToDatabaseValue(DateTime::createFromInterface($value), $platform);
+            }
+
+            if ($value instanceof DateTime) {
+                return $doctrineType->convertToDatabaseValue(DateTimeImmutable::createFromInterface($value), $platform);
+            }
+
+            throw $conversionException;
+        }
     }
 
     /**

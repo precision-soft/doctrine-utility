@@ -8,6 +8,8 @@ declare(strict_types=1);
 
 namespace PrecisionSoft\Doctrine\Utility\Test\Repository;
 
+use DateTime;
+use DateTimeImmutable;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Platforms\AbstractPlatform;
@@ -359,9 +361,9 @@ final class AbstractRepositoryTest extends AbstractTestCase
         $reflectionMethod->invoke($abstractRepositoryMock, $queryBuilderMock, ['code' => $codes]);
     }
 
-    public function testAttachGenericFiltersBindsDateStringArrayWithoutType(): void
+    public function testAttachGenericFiltersBindsDateStringArrayAsString(): void
     {
-        /** @info regression: a date-typed field receiving raw strings must bind untyped — converting them with DateType::convertToDatabaseValue() would throw InvalidType (expects \DateTimeInterface) */
+        /** @info a date column is selected by its Doctrine type, so raw 'YYYY-MM-DD' strings take the date branch too — they are already bindable and pass through untouched, bound as ArrayParameterType::STRING (identical to the type Doctrine inferred for an untyped string array) */
         $dates = ['2026-07-04', '2026-07-11'];
 
         $classMetadataMock = Mockery::mock(ClassMetadata::class);
@@ -378,12 +380,146 @@ final class AbstractRepositoryTest extends AbstractTestCase
         $queryBuilderMock->shouldReceive('andWhere')
             ->andReturnSelf();
         $queryBuilderMock->shouldReceive('setParameter')
-            ->with('date', $dates)
+            ->with('date', $dates, ArrayParameterType::STRING)
             ->once()
             ->andReturnSelf();
 
         $reflectionMethod = new ReflectionMethod(AbstractRepository::class, 'attachGenericFilters');
         $reflectionMethod->invoke($abstractRepositoryMock, $queryBuilderMock, ['date' => $dates]);
+    }
+
+    public function testAttachGenericFiltersConvertsDateTimeArrayThroughFieldType(): void
+    {
+        /** @info regression: a DateTime[] IN filter must be converted through the field type and bound as ArrayParameterType::STRING — DBAL has no array parameter type for dates, so an untyped DateTime would bind as a string and fail to stringify */
+        $dates = [new DateTime('2026-07-04'), new DateTime('2026-07-11')];
+
+        $classMetadataMock = Mockery::mock(ClassMetadata::class);
+        $classMetadataMock->shouldReceive('getTypeOfField')
+            ->with('date')
+            ->andReturn('date');
+        $classMetadataMock->shouldReceive('hasField')
+            ->with('date')
+            ->andReturn(true);
+
+        $abstractRepositoryMock = $this->mockRepositoryWithManager($classMetadataMock);
+
+        $queryBuilderMock = Mockery::mock(QueryBuilder::class);
+        $queryBuilderMock->shouldReceive('andWhere')
+            ->andReturnSelf();
+        $queryBuilderMock->shouldReceive('setParameter')
+            ->with('date', ['2026-07-04', '2026-07-11'], ArrayParameterType::STRING)
+            ->once()
+            ->andReturnSelf();
+
+        $reflectionMethod = new ReflectionMethod(AbstractRepository::class, 'attachGenericFilters');
+        $reflectionMethod->invoke($abstractRepositoryMock, $queryBuilderMock, ['date' => $dates]);
+    }
+
+    public function testAttachGenericFiltersConvertsDateTimeImmutableArrayThroughFieldType(): void
+    {
+        $dates = [new DateTimeImmutable('2026-07-04'), new DateTimeImmutable('2026-07-11')];
+
+        $classMetadataMock = Mockery::mock(ClassMetadata::class);
+        $classMetadataMock->shouldReceive('getTypeOfField')
+            ->with('date')
+            ->andReturn('date');
+        $classMetadataMock->shouldReceive('hasField')
+            ->with('date')
+            ->andReturn(true);
+
+        $abstractRepositoryMock = $this->mockRepositoryWithManager($classMetadataMock);
+
+        $queryBuilderMock = Mockery::mock(QueryBuilder::class);
+        $queryBuilderMock->shouldReceive('andWhere')
+            ->andReturnSelf();
+        $queryBuilderMock->shouldReceive('setParameter')
+            ->with('date', ['2026-07-04', '2026-07-11'], ArrayParameterType::STRING)
+            ->once()
+            ->andReturnSelf();
+
+        $reflectionMethod = new ReflectionMethod(AbstractRepository::class, 'attachGenericFilters');
+        $reflectionMethod->invoke($abstractRepositoryMock, $queryBuilderMock, ['date' => $dates]);
+    }
+
+    public function testAttachGenericFiltersConvertsMixedStringAndDateTimeArrayThroughFieldType(): void
+    {
+        /** @info a date field filter must accept both raw strings and date objects in the same array — the string is left untouched while the DateTime is converted through the field type, and both are bound as ArrayParameterType::STRING */
+        $dates = ['2026-07-04', new DateTime('2026-07-11')];
+
+        $classMetadataMock = Mockery::mock(ClassMetadata::class);
+        $classMetadataMock->shouldReceive('getTypeOfField')
+            ->with('date')
+            ->andReturn('date');
+        $classMetadataMock->shouldReceive('hasField')
+            ->with('date')
+            ->andReturn(true);
+
+        $abstractRepositoryMock = $this->mockRepositoryWithManager($classMetadataMock);
+
+        $queryBuilderMock = Mockery::mock(QueryBuilder::class);
+        $queryBuilderMock->shouldReceive('andWhere')
+            ->andReturnSelf();
+        $queryBuilderMock->shouldReceive('setParameter')
+            ->with('date', ['2026-07-04', '2026-07-11'], ArrayParameterType::STRING)
+            ->once()
+            ->andReturnSelf();
+
+        $reflectionMethod = new ReflectionMethod(AbstractRepository::class, 'attachGenericFilters');
+        $reflectionMethod->invoke($abstractRepositoryMock, $queryBuilderMock, ['date' => $dates]);
+    }
+
+    public function testAttachGenericFiltersBindsDateObjectArrayOnNonDateFieldWithoutType(): void
+    {
+        /** @info a string column is not a date/time column, so date objects passed to it never take the date branch — the filter keeps the untyped two-argument binding, exactly as Doctrine resolved it before */
+        $values = [new DateTime('2026-07-04'), new DateTime('2026-07-11')];
+
+        $classMetadataMock = Mockery::mock(ClassMetadata::class);
+        $classMetadataMock->shouldReceive('getTypeOfField')
+            ->with('payload')
+            ->andReturn('string');
+        $classMetadataMock->shouldReceive('hasField')
+            ->with('payload')
+            ->andReturn(true);
+
+        $abstractRepositoryMock = $this->mockRepositoryWithManager($classMetadataMock);
+
+        $queryBuilderMock = Mockery::mock(QueryBuilder::class);
+        $queryBuilderMock->shouldReceive('andWhere')
+            ->andReturnSelf();
+        $queryBuilderMock->shouldReceive('setParameter')
+            ->with('payload', $values)
+            ->once()
+            ->andReturnSelf();
+
+        $reflectionMethod = new ReflectionMethod(AbstractRepository::class, 'attachGenericFilters');
+        $reflectionMethod->invoke($abstractRepositoryMock, $queryBuilderMock, ['payload' => $values]);
+    }
+
+    public function testAttachGenericFiltersBindsNonDateObjectArrayWithoutType(): void
+    {
+        /** @info a custom-typed object array carries no date/time object, so it keeps the pre-existing untyped binding — setParameter() is called with two arguments only, exactly as Doctrine resolved it before */
+        $values = [new stdClass(), new stdClass()];
+
+        $classMetadataMock = Mockery::mock(ClassMetadata::class);
+        $classMetadataMock->shouldReceive('getTypeOfField')
+            ->with('payload')
+            ->andReturn('string');
+        $classMetadataMock->shouldReceive('hasField')
+            ->with('payload')
+            ->andReturn(true);
+
+        $abstractRepositoryMock = $this->mockRepositoryWithManager($classMetadataMock);
+
+        $queryBuilderMock = Mockery::mock(QueryBuilder::class);
+        $queryBuilderMock->shouldReceive('andWhere')
+            ->andReturnSelf();
+        $queryBuilderMock->shouldReceive('setParameter')
+            ->with('payload', $values)
+            ->once()
+            ->andReturnSelf();
+
+        $reflectionMethod = new ReflectionMethod(AbstractRepository::class, 'attachGenericFilters');
+        $reflectionMethod->invoke($abstractRepositoryMock, $queryBuilderMock, ['payload' => $values]);
     }
 
     public function testAttachGenericFiltersBindsIntBackedEnumArrayWithoutType(): void
@@ -544,9 +680,13 @@ final class AbstractRepositoryTest extends AbstractTestCase
         $abstractRepositoryMock->shouldReceive('getEntityClass')
             ->andReturn('Entity');
 
+        $platformMock = Mockery::mock(AbstractPlatform::class);
+        $platformMock->shouldReceive('getDateFormatString')
+            ->andReturn('Y-m-d');
+
         $connectionMock = Mockery::mock(Connection::class);
         $connectionMock->shouldReceive('getDatabasePlatform')
-            ->andReturn(Mockery::mock(AbstractPlatform::class));
+            ->andReturn($platformMock);
 
         $entityManagerMock = Mockery::mock(EntityManagerInterface::class);
         $entityManagerMock->shouldReceive('getClassMetadata')
