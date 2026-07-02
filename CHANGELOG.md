@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v4.1.12] - 2026-07-02 - Convert Symfony uid array IN filters through the column's Doctrine type
+
+### Fixed
+
+- `AbstractRepository::attachArrayFilter()` — array `IN (:param)` filters over a Symfony uid column (`uuid`/`ulid`, any type extending `Symfony\Bridge\Doctrine\Types\AbstractUidType`) now convert each value through the mapped field's Doctrine type and bind the array as `ArrayParameterType::STRING`. Uid types bind as `ParameterType::STRING` — the bridge does not override `getBindingType()` — so they miss the binary branch added in v4.1.8, yet on platforms without a native GUID type the column is stored as `BINARY(16)`; an `AbstractUid` bound untyped reached the driver as its string representation via `__toString()` (36-character RFC 4122 for `uuid`, 26-character base32 for `ulid`) and **silently matched nothing**, turning the whole `IN` filter into a no-op (e.g. a `deleteByIds()` built on `createQueryBuilderFromFilters()` deleting zero rows). The branch is selected by the field's Doctrine type, **not** by inspecting the values, and the uid type accepts both `AbstractUid` objects and RFC 4122 strings interchangeably — mixed arrays convert both, so existing callers passing strings stay correct. `ArrayParameterType::STRING` (not `BINARY`) matches what the persister does for single values on every platform: the type yields bytes on platforms without a native GUID type and an RFC 4122 string on those with one. If any element cannot be converted, the whole filter falls back to the pre-existing untyped binding, so this never binds worse than before — for uid types that do not declare `getName()` the fallback also catches `Error`, because the bridge's rejection helpers call `$this->getName()`, which DBAL 4's `Type` no longer declares, so such a subclass raises `Error` instead of `ConversionException` on the same rejection path; an `Error` from a type that does declare `getName()` (Symfony's own `UuidType`/`UlidType`, DBAL 3-era consumer types) is rethrown, since it can only signal a genuine bug in the type's own overrides, which must surface instead of silently binding untyped. Single-value `=` filters were already correct and remain unchanged. No public or protected method signatures changed, so existing subclass overrides keep working
+
+### Changed
+
+- `AbstractRepository::attachArrayFilter()` — the branch order becomes `binary → date/time → uid → default`, each keyed off the field's Doctrine type with an explicit early return. Uid detection lives in the private helper `isUidArrayColumn()`, guarded by `class_exists(AbstractUidType::class)` since symfony/doctrine-bridge is not a runtime dependency of this library — without the bridge installed the new branch is inert and behavior is unchanged
+
+### Added
+
+- `symfony/doctrine-bridge` and `symfony/uid` as require-dev dependencies (`^7.0`) so the uid branch is exercised in tests
+- `tests/Repository/AbstractRepositoryTest.php` — regression cases for `Uuid[]`, RFC 4122 `string[]`, and mixed `Uuid`/`string` array `IN` filters over a `uuid` field (converted through the field type to the binary representation, bound `ArrayParameterType::STRING`), and for an unconvertible element (`'not-a-uuid'`) falling back to the untyped two-argument binding
+- `tests/Repository/Fixture/CustomUidType.php` — consumer-style `AbstractUidType` subclass implementing only `getUidClass()`, without `getName()`, plus a regression case asserting that its rejection `Error` still lands on the untyped fallback instead of escaping `attachArrayFilter()`
+- `tests/Repository/Fixture/BrokenUidType.php` — consumer-style `AbstractUidType` subclass that does declare `getName()` but whose conversion raises `Error` for every value, plus a regression case asserting that such an `Error` is rethrown instead of silently degrading to the untyped binding
+
 ## [v4.1.11] - 2026-07-02 - Parse date/time array IN filters by the column's Doctrine type
 
 ### Fixed
@@ -454,7 +471,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `MySqlWalker` — custom SQL walker adding `USE INDEX` / `IGNORE INDEX` / `FORCE INDEX` / `FOR UPDATE` hints
 - Dev infrastructure: Docker container, git hooks (pre-commit with php-cs-fixer + lint + PHPUnit), PHP-CS-Fixer configuration, PHPUnit 9 test scaffolding
 
-[Unreleased]: https://github.com/precision-soft/doctrine-utility/compare/v4.1.11...HEAD
+[Unreleased]: https://github.com/precision-soft/doctrine-utility/compare/v4.1.12...HEAD
+
+[v4.1.12]: https://github.com/precision-soft/doctrine-utility/compare/v4.1.11...v4.1.12
 
 [v4.1.11]: https://github.com/precision-soft/doctrine-utility/compare/v4.1.10...v4.1.11
 

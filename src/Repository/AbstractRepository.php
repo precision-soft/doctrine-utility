@@ -28,10 +28,12 @@ use Doctrine\ORM\Query\Expr\Join;
 use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
 use Doctrine\Persistence\ObjectManager;
+use Error;
 use PrecisionSoft\Doctrine\Utility\Exception\Exception;
 use PrecisionSoft\Doctrine\Utility\Join\JoinCollection;
 use Psr\Log\LoggerInterface;
 use ReflectionClass;
+use Symfony\Bridge\Doctrine\Types\AbstractUidType;
 use UnitEnum;
 
 abstract class AbstractRepository
@@ -330,7 +332,18 @@ abstract class AbstractRepository
      *    `new DateTime('2026-07-04')`. The array is bound as `ArrayParameterType::STRING`. If any element cannot
      *    be converted (a value the type rejects even after matching mutability), the filter falls through to
      *    the default binding, so this can never bind worse than before.
-     * 3. Every other field keeps the untyped binding and lets Doctrine resolve the type as it does for single
+     * 3. Symfony uid columns (`uuid`/`ulid` via `AbstractUidType`) bind as `ParameterType::STRING`, so they miss
+     *    the binary branch, yet on platforms without a native GUID type they are stored as BINARY(16) — an
+     *    `AbstractUid` bound untyped reaches the driver as its string representation (36-character RFC 4122 for
+     *    `uuid`, 26-character base32 for `ulid`) and silently matches nothing. The field's Doctrine type — not the params — selects this branch; every value is
+     *    converted through the uid type (which accepts both `AbstractUid` objects and RFC 4122 strings) and the
+     *    array is bound as `ArrayParameterType::STRING`, matching what the persister does for single values on
+     *    every platform. If any element cannot be converted, the filter falls through to the default binding,
+     *    so this can never bind worse than before. An `Error` raised by a uid type that declares `getName()`
+     *    signals a bug in the type's own overrides — not an unconvertible element — and is rethrown instead of
+     *    falling through; only uid types without `getName()` (whose rejection path itself raises `Error` under
+     *    DBAL 4) fall through on `Error`.
+     * 4. Every other field keeps the untyped binding and lets Doctrine resolve the type as it does for single
      *    values — including unwrapping backed enums and binding scalar/string/int values from their raw
      *    representation. Associations, unmapped keys, and non-ORM managers land here too.
      *
@@ -392,7 +405,28 @@ abstract class AbstractRepository
             }
         }
 
-        /** @info default: every other column keeps the untyped binding and lets Doctrine resolve the type exactly as it does for single values — including unwrapping backed enums and binding scalar/string/int values from their raw representation. Associations, unmapped keys, and non-ORM managers land here too; so does the fall-through when date/time conversion fails */
+        /** @info Symfony uid columns bind as STRING so they miss the binary branch, yet without a native GUID type they are stored as BINARY(16) — an AbstractUid bound untyped reaches the driver as its string representation (36-character RFC 4122 for uuid, 26-character base32 for ulid) and silently matches nothing. The field's Doctrine type — not the params — decides this: every value is converted through the uid type (which accepts both AbstractUid objects and RFC 4122 strings) and the array is bound as STRING, exactly what the persister does for single values — the type yields bytes on platforms without a native GUID type and an RFC 4122 string on those with one */
+        if (true === $this->isUidArrayColumn($doctrineType)) {
+            try {
+                $databaseValues = \array_map(
+                    static fn(mixed $value): mixed => $doctrineType->convertToDatabaseValue($value, $platform),
+                    \array_values($filterValue),
+                );
+
+                $queryBuilder->setParameter($filterName, $databaseValues, ArrayParameterType::STRING);
+
+                return;
+            } catch (ConversionException) {
+                /** @info an element the uid type rejects — fall through to the untyped binding below so this never binds worse than before the uid handling was added */
+            } catch (Error $error) {
+                /** @info the bridge's rejection helpers call $this->getName(), which DBAL 4's Type no longer declares, so a uid type without getName() raises Error instead of ConversionException when it rejects an element — only those types fall through to the untyped binding below; a type that does declare getName() (Symfony's own UuidType/UlidType, DBAL 3-era consumer types) can only raise Error through a genuine bug (e.g. a broken getUidClass() or convertToDatabaseValue() override), which must surface instead of silently binding untyped and matching nothing */
+                if (true === \method_exists($doctrineType, 'getName')) {
+                    throw $error;
+                }
+            }
+        }
+
+        /** @info default: every other column keeps the untyped binding and lets Doctrine resolve the type exactly as it does for single values — including unwrapping backed enums and binding scalar/string/int values from their raw representation. Associations, unmapped keys, and non-ORM managers land here too; so does the fall-through when date/time or uid conversion fails */
         $queryBuilder->setParameter($filterName, $filterValue);
     }
 
@@ -407,6 +441,18 @@ abstract class AbstractRepository
             || $doctrineType instanceof PhpDateTimeMappingType
             || $doctrineType instanceof PhpTimeMappingType
             || $doctrineType instanceof DateIntervalType;
+    }
+
+    /**
+     * A field is a uid column when its Doctrine type extends Symfony's `AbstractUidType` (`uuid`/`ulid`). Detected by
+     * the field's type, never by inspecting the filter values. symfony/doctrine-bridge is not a runtime dependency of
+     * this library; the `class_exists` guard only makes that explicit — `instanceof` against a class that is not
+     * loaded evaluates to false without triggering autoloading, so the check is inert without the bridge either way.
+     */
+    private function isUidArrayColumn(Type $doctrineType): bool
+    {
+        return true === \class_exists(AbstractUidType::class)
+            && $doctrineType instanceof AbstractUidType;
     }
 
     /**

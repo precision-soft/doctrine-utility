@@ -23,6 +23,7 @@ use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
 use Doctrine\Persistence\ObjectManager;
 use Doctrine\Persistence\ObjectRepository;
+use Error;
 use Mockery;
 use Mockery\MockInterface;
 use PrecisionSoft\Doctrine\Utility\Exception\Exception;
@@ -31,6 +32,8 @@ use PrecisionSoft\Doctrine\Utility\Repository\AbstractRepository;
 use PrecisionSoft\Doctrine\Utility\Repository\DoctrineRepository;
 use PrecisionSoft\Doctrine\Utility\Repository\EmptyArrayFilterBehavior;
 use PrecisionSoft\Doctrine\Utility\Test\Repository\Fixture\BinaryUuidType;
+use PrecisionSoft\Doctrine\Utility\Test\Repository\Fixture\BrokenUidType;
+use PrecisionSoft\Doctrine\Utility\Test\Repository\Fixture\CustomUidType;
 use PrecisionSoft\Doctrine\Utility\Test\Repository\Fixture\IntBackedEnum;
 use PrecisionSoft\Doctrine\Utility\Test\Repository\Fixture\StringBackedEnum;
 use PrecisionSoft\Symfony\Phpunit\MockDto;
@@ -39,6 +42,8 @@ use Psr\Log\LoggerInterface;
 use ReflectionMethod;
 use ReflectionProperty;
 use stdClass;
+use Symfony\Bridge\Doctrine\Types\UuidType;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * @internal
@@ -272,9 +277,7 @@ final class AbstractRepositoryTest extends AbstractTestCase
 
     public function testAttachGenericFiltersBindsUuidArrayAsBinary(): void
     {
-        if (false === Type::hasType(BinaryUuidType::NAME)) {
-            Type::addType(BinaryUuidType::NAME, BinaryUuidType::class);
-        }
+        $this->registerType(BinaryUuidType::NAME, BinaryUuidType::class);
 
         $uuids = [
             '00000000-0000-0000-0000-000000000001',
@@ -495,6 +498,203 @@ final class AbstractRepositoryTest extends AbstractTestCase
         $reflectionMethod->invoke($abstractRepositoryMock, $queryBuilderMock, ['payload' => $values]);
     }
 
+    public function testAttachGenericFiltersConvertsUuidObjectArrayThroughFieldType(): void
+    {
+        $this->registerType(UuidType::NAME, UuidType::class);
+
+        /** @info regression: a Uuid[] IN filter must be converted through the field type and bound as ArrayParameterType::STRING — the uid type binds as STRING so it misses the binary branch, yet the column is stored as BINARY(16), and an untyped AbstractUid would reach the driver as its 36-character string and silently match nothing */
+        $uuids = [
+            Uuid::fromString('00000000-0000-0000-0000-000000000001'),
+            Uuid::fromString('00000000-0000-0000-0000-000000000002'),
+        ];
+        $expectedDatabaseValues = \array_map(
+            static fn(Uuid $uuid): string => $uuid->toBinary(),
+            $uuids,
+        );
+
+        $classMetadataMock = Mockery::mock(ClassMetadata::class);
+        $classMetadataMock->shouldReceive('getTypeOfField')
+            ->with('id')
+            ->andReturn(UuidType::NAME);
+        $classMetadataMock->shouldReceive('hasField')
+            ->with('id')
+            ->andReturn(true);
+
+        $abstractRepositoryMock = $this->mockRepositoryWithManager($classMetadataMock);
+
+        $queryBuilderMock = Mockery::mock(QueryBuilder::class);
+        $queryBuilderMock->shouldReceive('andWhere')
+            ->andReturnSelf();
+        $queryBuilderMock->shouldReceive('setParameter')
+            ->with('id', $expectedDatabaseValues, ArrayParameterType::STRING)
+            ->once()
+            ->andReturnSelf();
+
+        $reflectionMethod = new ReflectionMethod(AbstractRepository::class, 'attachGenericFilters');
+        $reflectionMethod->invoke($abstractRepositoryMock, $queryBuilderMock, ['id' => $uuids]);
+    }
+
+    public function testAttachGenericFiltersConvertsUuidStringArrayThroughFieldType(): void
+    {
+        $this->registerType(UuidType::NAME, UuidType::class);
+
+        /** @info a uid field filter must keep accepting raw RFC 4122 strings — the uid type converts them to the same binary representation as AbstractUid objects, so existing callers passing strings stay correct */
+        $uuids = [
+            '00000000-0000-0000-0000-000000000001',
+            '00000000-0000-0000-0000-000000000002',
+        ];
+        $expectedDatabaseValues = \array_map(
+            static fn(string $uuid): string => Uuid::fromString($uuid)->toBinary(),
+            $uuids,
+        );
+
+        $classMetadataMock = Mockery::mock(ClassMetadata::class);
+        $classMetadataMock->shouldReceive('getTypeOfField')
+            ->with('id')
+            ->andReturn(UuidType::NAME);
+        $classMetadataMock->shouldReceive('hasField')
+            ->with('id')
+            ->andReturn(true);
+
+        $abstractRepositoryMock = $this->mockRepositoryWithManager($classMetadataMock);
+
+        $queryBuilderMock = Mockery::mock(QueryBuilder::class);
+        $queryBuilderMock->shouldReceive('andWhere')
+            ->andReturnSelf();
+        $queryBuilderMock->shouldReceive('setParameter')
+            ->with('id', $expectedDatabaseValues, ArrayParameterType::STRING)
+            ->once()
+            ->andReturnSelf();
+
+        $reflectionMethod = new ReflectionMethod(AbstractRepository::class, 'attachGenericFilters');
+        $reflectionMethod->invoke($abstractRepositoryMock, $queryBuilderMock, ['id' => $uuids]);
+    }
+
+    public function testAttachGenericFiltersConvertsMixedUuidAndStringArrayThroughFieldType(): void
+    {
+        $this->registerType(UuidType::NAME, UuidType::class);
+
+        /** @info a uid field filter must accept both AbstractUid objects and raw RFC 4122 strings in the same array — the uid type converts both to the column's binary representation */
+        $uuids = [
+            Uuid::fromString('00000000-0000-0000-0000-000000000001'),
+            '00000000-0000-0000-0000-000000000002',
+        ];
+        $expectedDatabaseValues = [
+            Uuid::fromString('00000000-0000-0000-0000-000000000001')->toBinary(),
+            Uuid::fromString('00000000-0000-0000-0000-000000000002')->toBinary(),
+        ];
+
+        $classMetadataMock = Mockery::mock(ClassMetadata::class);
+        $classMetadataMock->shouldReceive('getTypeOfField')
+            ->with('id')
+            ->andReturn(UuidType::NAME);
+        $classMetadataMock->shouldReceive('hasField')
+            ->with('id')
+            ->andReturn(true);
+
+        $abstractRepositoryMock = $this->mockRepositoryWithManager($classMetadataMock);
+
+        $queryBuilderMock = Mockery::mock(QueryBuilder::class);
+        $queryBuilderMock->shouldReceive('andWhere')
+            ->andReturnSelf();
+        $queryBuilderMock->shouldReceive('setParameter')
+            ->with('id', $expectedDatabaseValues, ArrayParameterType::STRING)
+            ->once()
+            ->andReturnSelf();
+
+        $reflectionMethod = new ReflectionMethod(AbstractRepository::class, 'attachGenericFilters');
+        $reflectionMethod->invoke($abstractRepositoryMock, $queryBuilderMock, ['id' => $uuids]);
+    }
+
+    public function testAttachGenericFiltersBindsUnconvertibleUuidArrayWithoutType(): void
+    {
+        $this->registerType(UuidType::NAME, UuidType::class);
+
+        /** @info an element the uid type rejects makes the whole filter fall back to the untyped two-argument binding — never binds worse than before the uid handling was added */
+        $values = [
+            '00000000-0000-0000-0000-000000000001',
+            'not-a-uuid',
+        ];
+
+        $classMetadataMock = Mockery::mock(ClassMetadata::class);
+        $classMetadataMock->shouldReceive('getTypeOfField')
+            ->with('id')
+            ->andReturn(UuidType::NAME);
+        $classMetadataMock->shouldReceive('hasField')
+            ->with('id')
+            ->andReturn(true);
+
+        $abstractRepositoryMock = $this->mockRepositoryWithManager($classMetadataMock);
+
+        $queryBuilderMock = Mockery::mock(QueryBuilder::class);
+        $queryBuilderMock->shouldReceive('andWhere')
+            ->andReturnSelf();
+        $queryBuilderMock->shouldReceive('setParameter')
+            ->with('id', $values)
+            ->once()
+            ->andReturnSelf();
+
+        $reflectionMethod = new ReflectionMethod(AbstractRepository::class, 'attachGenericFilters');
+        $reflectionMethod->invoke($abstractRepositoryMock, $queryBuilderMock, ['id' => $values]);
+    }
+
+    public function testAttachGenericFiltersBindsArrayWithoutTypeWhenUidTypeLacksGetName(): void
+    {
+        $this->registerType(CustomUidType::NAME, CustomUidType::class);
+
+        /** @info a consumer AbstractUidType subclass without getName() (valid under DBAL 4) raises Error instead of ConversionException when it rejects an element — the fallback must still bind the original array untyped instead of crashing */
+        $values = ['not-a-uuid'];
+
+        $classMetadataMock = Mockery::mock(ClassMetadata::class);
+        $classMetadataMock->shouldReceive('getTypeOfField')
+            ->with('id')
+            ->andReturn(CustomUidType::NAME);
+        $classMetadataMock->shouldReceive('hasField')
+            ->with('id')
+            ->andReturn(true);
+
+        $abstractRepositoryMock = $this->mockRepositoryWithManager($classMetadataMock);
+
+        $queryBuilderMock = Mockery::mock(QueryBuilder::class);
+        $queryBuilderMock->shouldReceive('andWhere')
+            ->andReturnSelf();
+        $queryBuilderMock->shouldReceive('setParameter')
+            ->with('id', $values)
+            ->once()
+            ->andReturnSelf();
+
+        $reflectionMethod = new ReflectionMethod(AbstractRepository::class, 'attachGenericFilters');
+        $reflectionMethod->invoke($abstractRepositoryMock, $queryBuilderMock, ['id' => $values]);
+    }
+
+    public function testAttachGenericFiltersRethrowsErrorWhenUidTypeDeclaresGetName(): void
+    {
+        $this->registerType(BrokenUidType::NAME, BrokenUidType::class);
+
+        /** @info a uid type that declares getName() can only raise Error through a genuine bug in its own overrides — the filter must rethrow it instead of silently binding untyped and matching nothing */
+        $values = ['00000000-0000-0000-0000-000000000001'];
+
+        $classMetadataMock = Mockery::mock(ClassMetadata::class);
+        $classMetadataMock->shouldReceive('getTypeOfField')
+            ->with('id')
+            ->andReturn(BrokenUidType::NAME);
+        $classMetadataMock->shouldReceive('hasField')
+            ->with('id')
+            ->andReturn(true);
+
+        $abstractRepositoryMock = $this->mockRepositoryWithManager($classMetadataMock);
+
+        $queryBuilderMock = Mockery::mock(QueryBuilder::class);
+        $queryBuilderMock->shouldReceive('andWhere')
+            ->andReturnSelf();
+
+        $this->expectException(Error::class);
+        $this->expectExceptionMessage('broken uid type conversion');
+
+        $reflectionMethod = new ReflectionMethod(AbstractRepository::class, 'attachGenericFilters');
+        $reflectionMethod->invoke($abstractRepositoryMock, $queryBuilderMock, ['id' => $values]);
+    }
+
     public function testAttachGenericFiltersBindsNonDateObjectArrayWithoutType(): void
     {
         /** @info a custom-typed object array carries no date/time object, so it keeps the pre-existing untyped binding — setParameter() is called with two arguments only, exactly as Doctrine resolved it before */
@@ -668,6 +868,14 @@ final class AbstractRepositoryTest extends AbstractTestCase
         $reflectionMethod->invoke($abstractRepositoryMock, $queryBuilderMock, ['id' => $ids]);
     }
 
+    /** @param class-string<Type> $typeClass */
+    private function registerType(string $name, string $typeClass): void
+    {
+        if (false === Type::hasType($name)) {
+            Type::addType($name, $typeClass);
+        }
+    }
+
     /**
      * @param ClassMetadata $classMetadataMock
      *
@@ -683,6 +891,12 @@ final class AbstractRepositoryTest extends AbstractTestCase
         $platformMock = Mockery::mock(AbstractPlatform::class);
         $platformMock->shouldReceive('getDateFormatString')
             ->andReturn('Y-m-d');
+
+        /** @info AbstractUidType detects a native GUID type by comparing these two declarations — identical values mean no native GUID type, so uid values convert to their binary representation, as on MySQL */
+        $platformMock->shouldReceive('getGuidTypeDeclarationSQL')
+            ->andReturn('CHAR(36)');
+        $platformMock->shouldReceive('getStringTypeDeclarationSQL')
+            ->andReturn('CHAR(36)');
 
         $connectionMock = Mockery::mock(Connection::class);
         $connectionMock->shouldReceive('getDatabasePlatform')
