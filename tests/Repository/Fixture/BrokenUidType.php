@@ -14,9 +14,7 @@ use Symfony\Bridge\Doctrine\Types\AbstractUidType;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * Test-only consumer-style uid type that DOES declare getName() but whose conversion raises Error for every
- * value — simulating a genuine bug in a consumer override (e.g. getUidClass() pointing to a renamed class).
- * Used to prove the uid branch rethrows such Errors instead of silently falling back to the untyped binding.
+ * Declares `getName()` and still raises `Error`, which can only mean a bug in the type's own overrides.
  */
 class BrokenUidType extends AbstractUidType
 {

@@ -1,10 +1,16 @@
 /vendor/
+/.dev-data/
 /.idea/
 /auth.json
 /.php-cs-fixer.cache
 /.phpcs-cache
 /.phpunit.result.cache
+/.phpunit.cache/
+/phpunit.xml
+/var/
 /*.zip
+/*.tar.gz
 /.claude/
 /CLAUDE.md
 /AUDIT_REPORT.md
+.dev/docker/docker-compose.override.yml

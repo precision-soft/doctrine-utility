@@ -38,7 +38,7 @@ class DateFormat extends AbstractJsonSearch
     {
         $this->assertMySQLPlatform($sqlWalker);
 
-        /** @info dispatch() is used (not walkStringPrimary) because date expressions are ArithmeticPrimary nodes — dispatch() polymorphically calls the correct walker method for the actual node type */
+        /* dispatch(), not walkStringPrimary(): a date expression is an ArithmeticPrimary node and dispatch() picks the walker method by node type */
         $firstSql = true === ($this->firstDateExpression instanceof Node)
             ? $this->firstDateExpression->dispatch($sqlWalker)
             : $this->firstDateExpression;

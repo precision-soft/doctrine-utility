@@ -35,12 +35,14 @@ use PrecisionSoft\Doctrine\Utility\Test\Repository\Fixture\BinaryUuidType;
 use PrecisionSoft\Doctrine\Utility\Test\Repository\Fixture\BrokenUidType;
 use PrecisionSoft\Doctrine\Utility\Test\Repository\Fixture\CustomUidType;
 use PrecisionSoft\Doctrine\Utility\Test\Repository\Fixture\IntBackedEnum;
+use PrecisionSoft\Doctrine\Utility\Test\Repository\Fixture\StrictBinaryUuidType;
 use PrecisionSoft\Doctrine\Utility\Test\Repository\Fixture\StringBackedEnum;
 use PrecisionSoft\Symfony\Phpunit\MockDto;
 use PrecisionSoft\Symfony\Phpunit\TestCase\AbstractTestCase;
 use Psr\Log\LoggerInterface;
 use ReflectionMethod;
 use ReflectionProperty;
+use RuntimeException;
 use stdClass;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
@@ -108,7 +110,7 @@ final class AbstractRepositoryTest extends AbstractTestCase
         $joinWithNullAlias = new Join(Join::INNER_JOIN, 'entity');
         $joinCollection = new JoinCollection();
 
-        /** @info bypass JoinCollection::addJoin() which rejects null aliases; we want to verify attachJoins() also guards at runtime */
+        /* built without addJoin(), which rejects a null alias itself, so attachJoins()' own guard can be reached */
         $reflectionProperty = new ReflectionProperty(JoinCollection::class, 'joins');
         $reflectionProperty->setValue($joinCollection, ['x' => $joinWithNullAlias]);
 
@@ -284,7 +286,15 @@ final class AbstractRepositoryTest extends AbstractTestCase
             '00000000-0000-0000-0000-000000000002',
         ];
         $expectedBinaryValues = \array_map(
-            static fn(string $uuid): string => \hex2bin(\str_replace('-', '', $uuid)),
+            static function (string $uuid): string {
+                $binaryValue = \hex2bin(\str_replace('-', '', $uuid));
+
+                if (false === $binaryValue) {
+                    throw new RuntimeException('the fixture uuid is not valid hexadecimal');
+                }
+
+                return $binaryValue;
+            },
             $uuids,
         );
 
@@ -310,6 +320,37 @@ final class AbstractRepositoryTest extends AbstractTestCase
         $reflectionMethod->invoke($abstractRepositoryMock, $queryBuilderMock, ['id' => $uuids]);
     }
 
+    public function testAttachGenericFiltersBindsUnconvertibleBinaryArrayWithoutType(): void
+    {
+        $this->registerType(StrictBinaryUuidType::NAME, StrictBinaryUuidType::class);
+
+        $values = [
+            '00000000-0000-0000-0000-000000000001',
+            'not-a-uuid',
+        ];
+
+        $classMetadataMock = Mockery::mock(ClassMetadata::class);
+        $classMetadataMock->shouldReceive('getTypeOfField')
+            ->with('id')
+            ->andReturn(StrictBinaryUuidType::NAME);
+        $classMetadataMock->shouldReceive('hasField')
+            ->with('id')
+            ->andReturn(true);
+
+        $abstractRepositoryMock = $this->mockRepositoryWithManager($classMetadataMock);
+
+        $queryBuilderMock = Mockery::mock(QueryBuilder::class);
+        $queryBuilderMock->shouldReceive('andWhere')
+            ->andReturnSelf();
+        $queryBuilderMock->shouldReceive('setParameter')
+            ->with('id', $values)
+            ->once()
+            ->andReturnSelf();
+
+        $reflectionMethod = new ReflectionMethod(AbstractRepository::class, 'attachGenericFilters');
+        $reflectionMethod->invoke($abstractRepositoryMock, $queryBuilderMock, ['id' => $values]);
+    }
+
     public function testAttachGenericFiltersBindsIntegerArrayWithoutType(): void
     {
         $numbers = [1, 2, 3];
@@ -328,7 +369,6 @@ final class AbstractRepositoryTest extends AbstractTestCase
         $queryBuilderMock->shouldReceive('andWhere')
             ->andReturnSelf();
 
-        /** @info a non-binary mapped field keeps the untyped binding — Doctrine infers the array type as it did before, setParameter() is called with two arguments only */
         $queryBuilderMock->shouldReceive('setParameter')
             ->with('position', $numbers)
             ->once()
@@ -366,7 +406,6 @@ final class AbstractRepositoryTest extends AbstractTestCase
 
     public function testAttachGenericFiltersBindsDateStringArrayAsString(): void
     {
-        /** @info a date column is selected by its Doctrine type, so raw 'YYYY-MM-DD' strings take the date branch too — they are already bindable and pass through untouched, bound as ArrayParameterType::STRING (identical to the type Doctrine inferred for an untyped string array) */
         $dates = ['2026-07-04', '2026-07-11'];
 
         $classMetadataMock = Mockery::mock(ClassMetadata::class);
@@ -393,7 +432,6 @@ final class AbstractRepositoryTest extends AbstractTestCase
 
     public function testAttachGenericFiltersConvertsDateTimeArrayThroughFieldType(): void
     {
-        /** @info regression: a DateTime[] IN filter must be converted through the field type and bound as ArrayParameterType::STRING — DBAL has no array parameter type for dates, so an untyped DateTime would bind as a string and fail to stringify */
         $dates = [new DateTime('2026-07-04'), new DateTime('2026-07-11')];
 
         $classMetadataMock = Mockery::mock(ClassMetadata::class);
@@ -446,7 +484,6 @@ final class AbstractRepositoryTest extends AbstractTestCase
 
     public function testAttachGenericFiltersConvertsMixedStringAndDateTimeArrayThroughFieldType(): void
     {
-        /** @info a date field filter must accept both raw strings and date objects in the same array — the string is left untouched while the DateTime is converted through the field type, and both are bound as ArrayParameterType::STRING */
         $dates = ['2026-07-04', new DateTime('2026-07-11')];
 
         $classMetadataMock = Mockery::mock(ClassMetadata::class);
@@ -473,7 +510,6 @@ final class AbstractRepositoryTest extends AbstractTestCase
 
     public function testAttachGenericFiltersBindsDateObjectArrayOnNonDateFieldWithoutType(): void
     {
-        /** @info a string column is not a date/time column, so date objects passed to it never take the date branch — the filter keeps the untyped two-argument binding, exactly as Doctrine resolved it before */
         $values = [new DateTime('2026-07-04'), new DateTime('2026-07-11')];
 
         $classMetadataMock = Mockery::mock(ClassMetadata::class);
@@ -502,7 +538,6 @@ final class AbstractRepositoryTest extends AbstractTestCase
     {
         $this->registerType(UuidType::NAME, UuidType::class);
 
-        /** @info regression: a Uuid[] IN filter must be converted through the field type and bound as ArrayParameterType::STRING — the uid type binds as STRING so it misses the binary branch, yet the column is stored as BINARY(16), and an untyped AbstractUid would reach the driver as its 36-character string and silently match nothing */
         $uuids = [
             Uuid::fromString('00000000-0000-0000-0000-000000000001'),
             Uuid::fromString('00000000-0000-0000-0000-000000000002'),
@@ -538,7 +573,6 @@ final class AbstractRepositoryTest extends AbstractTestCase
     {
         $this->registerType(UuidType::NAME, UuidType::class);
 
-        /** @info a uid field filter must keep accepting raw RFC 4122 strings — the uid type converts them to the same binary representation as AbstractUid objects, so existing callers passing strings stay correct */
         $uuids = [
             '00000000-0000-0000-0000-000000000001',
             '00000000-0000-0000-0000-000000000002',
@@ -574,7 +608,6 @@ final class AbstractRepositoryTest extends AbstractTestCase
     {
         $this->registerType(UuidType::NAME, UuidType::class);
 
-        /** @info a uid field filter must accept both AbstractUid objects and raw RFC 4122 strings in the same array — the uid type converts both to the column's binary representation */
         $uuids = [
             Uuid::fromString('00000000-0000-0000-0000-000000000001'),
             '00000000-0000-0000-0000-000000000002',
@@ -610,7 +643,6 @@ final class AbstractRepositoryTest extends AbstractTestCase
     {
         $this->registerType(UuidType::NAME, UuidType::class);
 
-        /** @info an element the uid type rejects makes the whole filter fall back to the untyped two-argument binding — never binds worse than before the uid handling was added */
         $values = [
             '00000000-0000-0000-0000-000000000001',
             'not-a-uuid',
@@ -642,7 +674,6 @@ final class AbstractRepositoryTest extends AbstractTestCase
     {
         $this->registerType(CustomUidType::NAME, CustomUidType::class);
 
-        /** @info a consumer AbstractUidType subclass without getName() (valid under DBAL 4) raises Error instead of ConversionException when it rejects an element — the fallback must still bind the original array untyped instead of crashing */
         $values = ['not-a-uuid'];
 
         $classMetadataMock = Mockery::mock(ClassMetadata::class);
@@ -671,7 +702,6 @@ final class AbstractRepositoryTest extends AbstractTestCase
     {
         $this->registerType(BrokenUidType::NAME, BrokenUidType::class);
 
-        /** @info a uid type that declares getName() can only raise Error through a genuine bug in its own overrides — the filter must rethrow it instead of silently binding untyped and matching nothing */
         $values = ['00000000-0000-0000-0000-000000000001'];
 
         $classMetadataMock = Mockery::mock(ClassMetadata::class);
@@ -697,7 +727,6 @@ final class AbstractRepositoryTest extends AbstractTestCase
 
     public function testAttachGenericFiltersBindsNonDateObjectArrayWithoutType(): void
     {
-        /** @info a custom-typed object array carries no date/time object, so it keeps the pre-existing untyped binding — setParameter() is called with two arguments only, exactly as Doctrine resolved it before */
         $values = [new stdClass(), new stdClass()];
 
         $classMetadataMock = Mockery::mock(ClassMetadata::class);
@@ -724,7 +753,6 @@ final class AbstractRepositoryTest extends AbstractTestCase
 
     public function testAttachGenericFiltersBindsIntBackedEnumArrayWithoutType(): void
     {
-        /** @info a smallint field binds INTEGER, not BINARY, so the enum array keeps the untyped binding — Doctrine unwraps the backed enums to their scalar backing at query execution, as it did before */
         $statuses = [IntBackedEnum::First, IntBackedEnum::Second];
 
         $classMetadataMock = Mockery::mock(ClassMetadata::class);
@@ -793,7 +821,6 @@ final class AbstractRepositoryTest extends AbstractTestCase
         $queryBuilderMock->shouldReceive('andWhere')
             ->andReturnSelf();
 
-        /** @info the owning-side association keeps the untyped binding — setParameter() is called with two arguments only */
         $queryBuilderMock->shouldReceive('setParameter')
             ->with('owner', $ownerValues)
             ->once()
@@ -814,7 +841,6 @@ final class AbstractRepositoryTest extends AbstractTestCase
         $queryBuilderMock->shouldReceive('andWhere')
             ->andReturnSelf();
 
-        /** @info single-value `=` filters never resolve the manager: the binding stays untyped for uuid/int/string alike */
         $queryBuilderMock->shouldReceive('setParameter')
             ->with('id', $uuid)
             ->once()
@@ -858,7 +884,6 @@ final class AbstractRepositoryTest extends AbstractTestCase
         $queryBuilderMock->shouldReceive('andWhere')
             ->andReturnSelf();
 
-        /** @info a non-ORM manager cannot resolve field types, so the binding stays untyped — exactly the pre-fix behavior, no exception */
         $queryBuilderMock->shouldReceive('setParameter')
             ->with('id', $ids)
             ->once()
@@ -877,11 +902,11 @@ final class AbstractRepositoryTest extends AbstractTestCase
     }
 
     /**
-     * @param ClassMetadata $classMetadataMock
+     * @param ClassMetadata<object>&MockInterface $classMetadataMock
      *
      * @return AbstractRepository&MockInterface
      */
-    private function mockRepositoryWithManager(MockInterface $classMetadataMock): MockInterface
+    private function mockRepositoryWithManager(ClassMetadata&MockInterface $classMetadataMock): MockInterface
     {
         $abstractRepositoryMock = $this->get(AbstractRepository::class);
         $abstractRepositoryMock->shouldAllowMockingProtectedMethods();
@@ -892,7 +917,7 @@ final class AbstractRepositoryTest extends AbstractTestCase
         $platformMock->shouldReceive('getDateFormatString')
             ->andReturn('Y-m-d');
 
-        /** @info AbstractUidType detects a native GUID type by comparing these two declarations — identical values mean no native GUID type, so uid values convert to their binary representation, as on MySQL */
+        /* the two declarations must stay identical: that is how AbstractUidType concludes there is no native GUID type, as on MySQL */
         $platformMock->shouldReceive('getGuidTypeDeclarationSQL')
             ->andReturn('CHAR(36)');
         $platformMock->shouldReceive('getStringTypeDeclarationSQL')
@@ -919,10 +944,7 @@ final class AbstractRepositoryTest extends AbstractTestCase
         return $abstractRepositoryMock;
     }
 
-    /**
-     * @param AbstractRepository $abstractRepositoryMock
-     */
-    private function mockAbstractRepository(MockInterface $abstractRepositoryMock): void
+    private function mockAbstractRepository(AbstractRepository&MockInterface $abstractRepositoryMock): void
     {
         $classMetadataMock = Mockery::mock(ClassMetadata::class);
 
@@ -970,5 +992,62 @@ final class AbstractRepositoryTest extends AbstractTestCase
                     new Join(Join::INNER_JOIN, 'test', 't'),
                 ),
             );
+    }
+
+    public function testAttachFiltersDispatchesBothFilterKindsAndAttachesTheJoins(): void
+    {
+        $reflectionMethod = new ReflectionMethod(AbstractRepository::class, 'attachFilters');
+
+        $abstractRepositoryMock = $this->get(AbstractRepository::class);
+        $abstractRepositoryMock->shouldAllowMockingProtectedMethods();
+
+        $queryBuilderMock = Mockery::mock(QueryBuilder::class);
+
+        $genericFilters = ['name' => 'test'];
+        $customFilters = ['customField' => 'value'];
+
+        $joinCollection = new JoinCollection();
+        $joinCollection->addJoin(new Join(Join::INNER_JOIN, 'test', 't'));
+
+        $abstractRepositoryMock->shouldReceive('sortFilters')
+            ->once()
+            ->andReturn([$genericFilters, $customFilters]);
+        $abstractRepositoryMock->shouldReceive('attachGenericFilters')
+            ->once()
+            ->with($queryBuilderMock, $genericFilters);
+        $abstractRepositoryMock->shouldReceive('attachCustomFilters')
+            ->once()
+            ->with($queryBuilderMock, $customFilters)
+            ->andReturn($joinCollection);
+        $abstractRepositoryMock->shouldReceive('attachJoins')
+            ->once()
+            ->with($queryBuilderMock, $joinCollection);
+
+        $result = $reflectionMethod->invoke(
+            $abstractRepositoryMock,
+            $queryBuilderMock,
+            $genericFilters + $customFilters,
+        );
+
+        static::assertSame($joinCollection, $result);
+    }
+
+    public function testAttachFiltersSkipsEachStepWhenItsFilterListIsEmpty(): void
+    {
+        $reflectionMethod = new ReflectionMethod(AbstractRepository::class, 'attachFilters');
+
+        $abstractRepositoryMock = $this->get(AbstractRepository::class);
+        $abstractRepositoryMock->shouldAllowMockingProtectedMethods();
+
+        $queryBuilderMock = Mockery::mock(QueryBuilder::class);
+
+        $abstractRepositoryMock->shouldReceive('sortFilters')
+            ->once()
+            ->andReturn([[], []]);
+        $abstractRepositoryMock->shouldNotReceive('attachGenericFilters');
+        $abstractRepositoryMock->shouldNotReceive('attachCustomFilters');
+        $abstractRepositoryMock->shouldNotReceive('attachJoins');
+
+        static::assertNull($reflectionMethod->invoke($abstractRepositoryMock, $queryBuilderMock, []));
     }
 }

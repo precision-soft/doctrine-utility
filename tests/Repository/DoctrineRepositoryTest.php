@@ -94,12 +94,17 @@ final class DoctrineRepositoryTest extends TestCase
         static::assertSame(false, $doctrineRepository->hasField('nonExistent'));
     }
 
+    /** @param ClassMetadata<object> $classMetadata */
     private function createDoctrineRepositoryWithMetadata(ClassMetadata $classMetadata): DoctrineRepository
     {
         $reflectionClass = new ReflectionClass(DoctrineRepository::class);
         $doctrineRepository = $reflectionClass->newInstanceWithoutConstructor();
 
-        $classMetadataProperty = $reflectionClass->getParentClass()->getProperty('class');
+        $parentReflectionClass = $reflectionClass->getParentClass();
+
+        static::assertNotFalse($parentReflectionClass, 'DoctrineRepository must keep extending EntityRepository, which is where `class` lives');
+
+        $classMetadataProperty = $parentReflectionClass->getProperty('class');
         $classMetadataProperty->setValue($doctrineRepository, $classMetadata);
 
         return $doctrineRepository;

@@ -1,10 +1,18 @@
 includes:
-    - phpstan-baseline.neon
+    - vendor/phpstan/phpstan-mockery/extension.neon
 
 parameters:
     level: 8
     paths:
         - src/
         - tests/
-    bootstrapFiles:
-        - vendor/bin/.phpunit/phpunit-11.5-0/vendor/autoload.php
+    ignoreErrors:
+        -
+            # `attachJoins()` rejects a join type it does not recognise, and the only way to reach that branch
+            # is to construct `Expr\Join` with a type outside its own 'INNER'|'LEFT' literal union. A consumer
+            # can reach it through a subclass that builds its own joins, so the guard is live code and the
+            # test that covers it has to pass an argument the literal type forbids. No `count`: another test
+            # exercising the same branch must not turn the gate red.
+            identifier: argument.type
+            message: '#^Parameter \#1 \$joinType of class Doctrine\\ORM\\Query\\Expr\\Join constructor expects ''INNER''\|''LEFT'', ''INVALID_JOIN'' given\.$#'
+            path: tests/Repository/AbstractRepositoryTest.php

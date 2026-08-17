@@ -9,7 +9,7 @@ declare(strict_types=1);
 namespace PrecisionSoft\Doctrine\Utility\Test\Entity;
 
 use DateTime;
-use PrecisionSoft\Doctrine\Utility\Entity\CreatedTrait;
+use PrecisionSoft\Doctrine\Utility\Test\Utility\CreatedTraitUser;
 use PrecisionSoft\Symfony\Phpunit\MockDto;
 use PrecisionSoft\Symfony\Phpunit\TestCase\AbstractTestCase;
 use stdClass;
@@ -24,14 +24,11 @@ final class CreatedTraitTest extends AbstractTestCase
         return new MockDto(stdClass::class);
     }
 
-    /** @phpstan-var object */
-    private object $entity;
+    private CreatedTraitUser $entity;
 
     protected function setUp(): void
     {
-        $this->entity = new class {
-            use CreatedTrait;
-        };
+        $this->entity = new CreatedTraitUser();
     }
 
     public function testGetCreatedDefaultIsNull(): void

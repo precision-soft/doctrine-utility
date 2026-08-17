@@ -74,7 +74,7 @@ class MySqlWalker extends SqlWalker
             $this->validateIdentifier($indexName);
             $this->validateIdentifier($tableName);
 
-            if (1 === \preg_match('/`' . \preg_quote($tableName, '/') . '`/', $joinDeclarationSql)) {
+            if (true === $this->joinDeclarationTargetsTable($joinDeclarationSql, $tableName)) {
                 $replacedJoinDeclarationSql = \preg_replace('/\bON\b/', 'IGNORE INDEX (' . $indexName . ') ON', $joinDeclarationSql, 1);
 
                 if (null === $replacedJoinDeclarationSql) {
@@ -86,6 +86,15 @@ class MySqlWalker extends SqlWalker
         }
 
         return $joinDeclarationSql;
+    }
+
+    /**
+     * Matched on word boundaries, not between backticks: DBAL 4 quotes an identifier only when it has to, so an
+     * ordinary table arrives unquoted — and a prefix must still not match.
+     */
+    protected function joinDeclarationTargetsTable(string $joinDeclarationSql, string $tableName): bool
+    {
+        return 1 === \preg_match('/\b' . \preg_quote($tableName, '/') . '\b/', $joinDeclarationSql);
     }
 
     /**

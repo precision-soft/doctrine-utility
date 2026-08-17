@@ -18,6 +18,7 @@ use Mockery\MockInterface;
 use PHPUnit\Framework\TestCase;
 use PrecisionSoft\Doctrine\Utility\Exception\MysqlLockException;
 use PrecisionSoft\Doctrine\Utility\Service\MysqlLockService;
+use ReflectionMethod;
 
 /**
  * @internal
@@ -26,9 +27,9 @@ final class MysqlLockServiceTest extends TestCase
 {
     use MockeryPHPUnitIntegration;
 
-    private ManagerRegistry|MockInterface $managerRegistry;
-    private EntityManager|MockInterface $entityManager;
-    private Connection|MockInterface $connection;
+    private ManagerRegistry&MockInterface $managerRegistry;
+    private EntityManager&MockInterface $entityManager;
+    private Connection&MockInterface $connection;
     private MysqlLockService $mysqlLockService;
 
     protected function setUp(): void
@@ -237,7 +238,6 @@ final class MysqlLockServiceTest extends TestCase
         $this->mysqlLockService->acquire('test_lock');
         $this->mysqlLockService->acquire('test_lock', 0, null, true);
 
-        /** @info a single release must drop the reference count to 0 and issue RELEASE_LOCK — forceRefresh re-acquired the same lock without inflating the count */
         $this->mysqlLockService->release('test_lock', null, true);
     }
 
@@ -531,7 +531,6 @@ final class MysqlLockServiceTest extends TestCase
 
         $this->connection->shouldReceive('quote')
             ->andReturn("'lock_a'");
-        /** @info one GET_LOCK (the second acquire only increments the in-process count) and exactly one RELEASE_LOCK despite a reference count of 2 */
         $this->connection->shouldReceive('executeQuery')
             ->times(2)
             ->andReturn($acquireResult, $releaseResult);
@@ -541,7 +540,6 @@ final class MysqlLockServiceTest extends TestCase
 
         $this->mysqlLockService->releaseLocks();
 
-        /** @info the lock is fully drained, so releasing it again must report it as not currently held */
         $this->expectException(MysqlLockException::class);
         $this->mysqlLockService->release('lock_a', null, true);
     }
@@ -558,6 +556,63 @@ final class MysqlLockServiceTest extends TestCase
         $this->expectException(MysqlLockException::class);
 
         $this->mysqlLockService->releaseLocks(['nonexistent_lock'], null, true);
+    }
+
+    /* caught rather than expectException(): the assertions are on the exception, which ends the test at the throw */
+    public function testReleaseLocksNamesTheFailingLockInTheExceptionContext(): void
+    {
+        try {
+            $this->mysqlLockService->releaseLocks(['nonexistent_lock'], 'secondary', true);
+
+            static::fail('releaseLocks was expected to throw');
+        } catch (MysqlLockException $mysqlLockException) {
+            static::assertSame(
+                [
+                    'lockName' => 'nonexistent_lock',
+                    'entityManagerName' => 'secondary',
+                    'releasedAll' => false,
+                ],
+                $mysqlLockException->getContext(),
+            );
+
+            static::assertSame('the lock "nonexistent_lock" is not currently acquired', $mysqlLockException->getMessage());
+        }
+    }
+
+    public function testReleaseAllLocksNamesTheFailingLockInTheExceptionContext(): void
+    {
+        $acquireResult = Mockery::mock(Result::class);
+        $acquireResult->shouldReceive('fetchAssociative')
+            ->once()
+            ->andReturn(['lockAcquired' => 1]);
+
+        $releaseResult = Mockery::mock(Result::class);
+        $releaseResult->shouldReceive('fetchAssociative')
+            ->once()
+            ->andReturn(['lockReleased' => 0]);
+
+        $this->connection->shouldReceive('quote')
+            ->andReturn("'held_lock'");
+        $this->connection->shouldReceive('executeQuery')
+            ->twice()
+            ->andReturn($acquireResult, $releaseResult);
+
+        $this->mysqlLockService->acquire('held_lock');
+
+        try {
+            $this->mysqlLockService->releaseLocks(null, null, true);
+
+            static::fail('releaseLocks was expected to throw');
+        } catch (MysqlLockException $mysqlLockException) {
+            static::assertSame(
+                [
+                    'lockName' => 'held_lock',
+                    'entityManagerName' => null,
+                    'releasedAll' => true,
+                ],
+                $mysqlLockException->getContext(),
+            );
+        }
     }
 
     public function testPrepareLockNameTruncatesLongNames(): void
@@ -622,5 +677,24 @@ final class MysqlLockServiceTest extends TestCase
             ->andReturn($queryResult);
 
         $this->mysqlLockService->hasLock($maxLengthName);
+    }
+
+    public function testLockKeySeparatesBothTheLockNameAndTheEntityManager(): void
+    {
+        $reflectionMethod = new ReflectionMethod(MysqlLockService::class, 'buildLockKey');
+
+        $keys = [
+            $reflectionMethod->invoke($this->mysqlLockService, 'alpha', null),
+            $reflectionMethod->invoke($this->mysqlLockService, 'beta', null),
+            $reflectionMethod->invoke($this->mysqlLockService, 'alpha', 'secondary'),
+            $reflectionMethod->invoke($this->mysqlLockService, 'beta', 'secondary'),
+        ];
+
+        static::assertCount(4, \array_unique($keys));
+
+        static::assertSame(
+            $reflectionMethod->invoke($this->mysqlLockService, 'alpha', null),
+            $reflectionMethod->invoke($this->mysqlLockService, 'alpha', 'default'),
+        );
     }
 }

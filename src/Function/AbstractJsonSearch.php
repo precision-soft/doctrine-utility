@@ -27,7 +27,7 @@ abstract class AbstractJsonSearch extends FunctionNode
      */
     protected function assertMySQLPlatform(SqlWalker $sqlWalker): void
     {
-        /** @info AbstractMySQLPlatform covers both MySQLPlatform and MariaDBPlatform (siblings in DBAL 4); MariaDB supports these JSON/DATE_FORMAT functions too, so the check must not narrow to MySQLPlatform alone */
+        /* AbstractMySQLPlatform, never MySQLPlatform: MariaDB is a DBAL 4 sibling and supports these functions too */
         if (false === ($sqlWalker->getConnection()->getDatabasePlatform() instanceof AbstractMySQLPlatform)) {
             throw new Exception(\sprintf('function `%s` is not supported', static::FUNCTION_NAME)); // @phpstan-ignore classConstant.notFound
         }

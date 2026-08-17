@@ -1,5 +1,6 @@
 # Doctrine Utility
 
+[![ci](https://github.com/precision-soft/doctrine-utility/actions/workflows/ci.yml/badge.svg)](https://github.com/precision-soft/doctrine-utility/actions/workflows/ci.yml)
 [![PHP >= 8.2](https://img.shields.io/badge/php-%3E%3D8.2-8892BF)](https://www.php.net/)
 [![PHPStan Level 8](https://img.shields.io/badge/phpstan-level%208-brightgreen)](https://phpstan.org/)
 [![Code Style PER-CS2.0](https://img.shields.io/badge/code%20style-PER--CS2.0-blue)](https://www.php-fig.org/per/coding-style/)
@@ -16,7 +17,7 @@ Any suggestions are welcomed.
 - PHP 8.2+
 - Doctrine ORM 3
 - Doctrine DBAL 4
-- MySQL (all features — DQL functions, MySqlWalker, and MysqlLockService — require MySQL)
+- MySQL **or MariaDB** (the DQL functions, `MySqlWalker` and `MysqlLockService` require one of the two; the integration suite runs against MySQL 8.4 and MariaDB 11.4)
 
 ## Installation
 
@@ -185,7 +186,8 @@ By default `getLogger()` returns `null` and no logging happens. When provided, w
 
 ## DQL Functions
 
-This library provides MySQL-specific DQL functions. Register them in your Doctrine configuration:
+This library provides DQL functions for the MySQL family — MySQL and MariaDB alike, since `AbstractJsonSearch`
+checks `AbstractMySQLPlatform` rather than `MySQLPlatform`. Register them in your Doctrine configuration:
 
 ```yaml
 # config/packages/doctrine.yaml
@@ -289,6 +291,28 @@ class MyEntity
 }
 ```
 
+## Exception context
+
+Every exception in this package carries a structured `context` array next to its message, so the facts describing a failure do not have to be parsed back out of a string:
+
+```php
+try {
+    // ...
+} catch (Exception $exception) {
+    $logger->error($exception->getMessage(), $exception->getContext());
+}
+```
+
+`getContext()` returns `[]` when nothing was attached. `setContext()` replaces it and returns the exception, and the constructor accepts it as an optional fourth argument. Values are expected to be scalars, so the array stays serialisable by a logger.
+
+The context is purely **additive**: no message, code or previous throwable changed when it was introduced, so code that logs only `getMessage()` behaves exactly as before.
+
+What this package attaches: `MysqlLockService::releaseLocks()` reports `lockName`, `entityManagerName` and
+`releasedAll` when a lock cannot be released. That matters because the message it rethrows is the inner throwable's and names no lock, so before the context there was no way to tell *which* lock failed; `releasedAll` distinguishes the release-all loop from the named-list one.
+
+Every exception in the package implements `Contract\ExceptionInterface`, so a consumer can read the context off any of them without knowing the concrete class. A subclass of your own that already declares a `$context` property or a
+`getContext()`/`setContext()` method will collide with `Exception\Trait\ExceptionTrait`.
+
 ## Dev
 
 ```shell
@@ -296,3 +320,45 @@ git clone git@github.com:precision-soft/doctrine-utility.git
 cd doctrine-utility
 ./dc build && ./dc up -d
 ```
+
+Run the full gate the way the pre-commit hook runs it - the CI workflow in
+`.github/workflows/ci.yml` calls the same composer scripts, so the two cannot drift:
+
+```shell
+.dev/validate/all.sh
+.dev/validate/all.sh --audit    # also audits the locked dependencies ( needs the network )
+.dev/validate/all.sh --staged   # what the pre-commit hook runs: nothing unless the index carries php
+```
+
+Mutation testing is opt-in for the same reason, plus cost - it runs the suite once per mutant:
+
+```shell
+.dev/validate/all.sh --mutation
+```
+
+Infection is a pinned phar in the image, not a composer dependency, and `infection.json5` carries a
+`minMsi` floor equal to the last measured score, so the section fails when a change makes the suite weaker rather than only reporting a number. Raise the floor when the score improves.
+
+The integration suite needs real databases, which are behind a Compose profile so the default `up`
+stays fast and offline:
+
+```shell
+./dc --profile db up -d
+.dev/validate/all.sh --integration
+```
+
+Tests connect through `DATABASE_URL_MYSQL` and `DATABASE_URL_MARIADB` and skip themselves when those services are not running, so `composer check` never depends on them.
+
+Build against another PHP version with the `PHP_VERSION` build argument - each version is tagged as its own image, so switching back and forth costs nothing:
+
+```shell
+PHP_VERSION=8.4 ./dc build && PHP_VERSION=8.4 ./dc up -d
+```
+
+Coverage is available through pcov, which is installed but disabled by default:
+
+```shell
+./dc exec dev php -d pcov.enabled=1 vendor/bin/simple-phpunit --coverage-text
+```
+
+After editing a file, `./dc restart dev` (a few seconds) is enough to be sure the container is not serving a stale copy - the bind mount can keep the old inode after an atomic rewrite.

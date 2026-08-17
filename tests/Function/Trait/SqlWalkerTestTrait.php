@@ -18,7 +18,7 @@ use Mockery\MockInterface;
 
 trait SqlWalkerTestTrait
 {
-    protected function createMysqlSqlWalker(): SqlWalker|MockInterface
+    protected function createMysqlSqlWalker(): SqlWalker&MockInterface
     {
         $connection = Mockery::mock(Connection::class);
         $connection->shouldReceive('getDatabasePlatform')
@@ -31,7 +31,7 @@ trait SqlWalkerTestTrait
         return $sqlWalker;
     }
 
-    protected function createMariaDbSqlWalker(): SqlWalker|MockInterface
+    protected function createMariaDbSqlWalker(): SqlWalker&MockInterface
     {
         $connection = Mockery::mock(Connection::class);
         $connection->shouldReceive('getDatabasePlatform')
@@ -44,7 +44,7 @@ trait SqlWalkerTestTrait
         return $sqlWalker;
     }
 
-    protected function createNonMysqlSqlWalker(): SqlWalker|MockInterface
+    protected function createNonMysqlSqlWalker(): SqlWalker&MockInterface
     {
         $connection = Mockery::mock(Connection::class);
         $connection->shouldReceive('getDatabasePlatform')

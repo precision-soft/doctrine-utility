@@ -92,7 +92,7 @@ class MysqlLockService
             switch (true) {
                 case static::GET_LOCK_SUCCESS === $lockAcquired:
                     if (true === isset($this->locks[$lockKey])) {
-                        /** @info refresh path: the lock was already held and forceRefresh re-ran GET_LOCK; update the prepared name in place without inflating the reference count */
+                        /* the lock was already held and forceRefresh re-ran GET_LOCK: update in place, do not inflate the reference count */
                         $this->locks[$lockKey]['preparedLockName'] = $preparedLockName;
                     } else {
                         $this->locks[$lockKey] = [
@@ -216,13 +216,22 @@ class MysqlLockService
                 $lockKey = $this->buildLockKey($lockData['lockName'], $lockData['entityManagerName']);
 
                 try {
-                    /** @info release() is reference-counted; "release all" must fully drain a reentrant lock, so loop until the key is gone */
+                    /* release() is reference-counted, so releasing all must loop until a reentrant lock's key is gone */
                     while (true === isset($this->locks[$lockKey])) {
                         $this->release($lockData['lockName'], $lockData['entityManagerName'], throwException: true);
                     }
                 } catch (Throwable $throwable) {
                     if (true === $throwException) {
-                        throw new MysqlLockException($throwable->getMessage(), (int)$throwable->getCode(), $throwable);
+                        throw new MysqlLockException(
+                            $throwable->getMessage(),
+                            (int)$throwable->getCode(),
+                            $throwable,
+                            [
+                                'lockName' => $lockData['lockName'],
+                                'entityManagerName' => $lockData['entityManagerName'],
+                                'releasedAll' => true,
+                            ],
+                        );
                     }
                 }
             }
@@ -232,7 +241,16 @@ class MysqlLockService
                     $this->release($lockName, $entityManagerName, throwException: true);
                 } catch (Throwable $throwable) {
                     if (true === $throwException) {
-                        throw new MysqlLockException($throwable->getMessage(), (int)$throwable->getCode(), $throwable);
+                        throw new MysqlLockException(
+                            $throwable->getMessage(),
+                            (int)$throwable->getCode(),
+                            $throwable,
+                            [
+                                'lockName' => $lockName,
+                                'entityManagerName' => $entityManagerName,
+                                'releasedAll' => false,
+                            ],
+                        );
                     }
                 }
             }

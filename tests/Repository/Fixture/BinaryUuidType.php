@@ -13,10 +13,7 @@ use Doctrine\DBAL\Platforms\AbstractPlatform;
 use Doctrine\DBAL\Types\Type;
 
 /**
- * Test-only Doctrine type mimicking a uuid stored as BINARY(16): it converts the dashed-string
- * representation to its 16-byte binary form and binds as ParameterType::BINARY. Used to reproduce
- * the array `IN` regression on the binary branch — Symfony's real UuidType (used by the uid-branch
- * tests) cannot cover it, since it binds ParameterType::STRING, not BINARY.
+ * Binds `ParameterType::BINARY`, which Symfony's own UuidType does not: that is what selects the binary branch.
  */
 class BinaryUuidType extends Type
 {
