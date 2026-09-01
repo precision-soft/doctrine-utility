@@ -85,7 +85,7 @@ if [[ "true" = "${AUDIT_REQUESTED}" ]]; then
 fi
 
 if [[ "true" = "${INTEGRATION_REQUESTED}" ]]; then
-    for CONTAINER_DATABASE in mysql mariadb; do
+    for CONTAINER_DATABASE in mysql mariadb postgresql; do
         ensure_service_running "${CONTAINER_DATABASE}"
         wait_for_service_healthy "${CONTAINER_DATABASE}"
     done

@@ -6,6 +6,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [v4.3.0] - 2026-09-01 - PostgreSQL advisory locks, a shared lock contract, and typed repository criteria
+
+### Added
+
+- `LockServiceInterface` captures the named-lock contract, and `AbstractLockService` now carries the reference counting, the lock key derivation and the exception wrapping that `MysqlLockService` had grown. Consumers can depend on the portable abstraction, and a third engine only has to supply its own acquire, release and probe statements
+- `PostgresqlLockService` implements that contract on PostgreSQL two-key advisory locks: the lock name is hashed to a deterministic `(classid, objid)` pair, waiting is bounded by a polling deadline because PostgreSQL has no blocking `pg_advisory_lock` with a timeout, and multi-lock acquisition sorts its names so two callers cannot deadlock against each other
+- `LockException` is the new base of the lock exception hierarchy, with `MysqlLockException` and `PostgresqlLockException` extending it. `catch (Exception)` keeps working — `LockException` still extends the package's own `Exception`
+- Typed repository criteria: `Criteria`, `Filter`, `Operator`, `Sort`, `Direction` and `Keyset`, consumed by `AbstractRepository::createQueryBuilderFromCriteria()`. It validates every field against the mapping, supports the eleven operators, sorting, limits, and keyset pagination that emulates a row value comparison so a page boundary stays deterministic across mixed sort directions. The array filter API is untouched and stays supported
+- `LockServiceInterface::hasLockInCurrentSession()` answers the question `hasLock()` cannot: whether *this* connection owns the lock, rather than whether anyone does. It compares `IS_USED_LOCK()` against `CONNECTION_ID()` on MySQL and `pg_locks.pid` against `pg_backend_pid()` on PostgreSQL. The primitive already backed `forceRefresh` internally; this exposes it
+- The integration suite runs against PostgreSQL 17 alongside MySQL 8.4 and MariaDB 11.4, and CI covers PHP 8.5 and the highest allowed Symfony dependency set
+
+### Fixed
+
+- `MysqlLockService::acquire()` with `forceRefresh: true` **leaked a lock level on the server**. `GET_LOCK` is reentrant for the session that already holds the name, so re-running it raised the server's own counter to two while the reference count stayed at one; the matching `release()` then issued a single `RELEASE_LOCK` and left the name held until the connection closed. A refresh now asks `IS_USED_LOCK`/`CONNECTION_ID` whether this very session still owns the lock and re-takes it only when it does not, so the engine's count and the reference count can no longer drift apart. The same probe backs the PostgreSQL implementation through `pg_locks` and `pg_backend_pid()`
+- `createQueryBuilderFromCriteria()` bound `IN` and `NOT IN` lists without consulting the column's Doctrine type, so the typed path silently reintroduced the three conversion bugs fixed in v4.1.8, v4.1.11 and v4.1.12: a `Uuid` against a `BINARY(16)` column, a `DateTime` inside an array, and a Symfony uid all reached the driver unconverted and matched nothing. Both filter APIs now share one conversion pipeline, `convertArrayFilterValues()`
+- `createQueryBuilderFromCriteria()` threw on an empty `IN` array instead of honouring `EmptyArrayFilterBehavior`, which the array filter path has always respected. An empty `IN` now routes through `handleEmptyArrayFilter()`, and an empty `NOT IN` — which excludes no row — adds no clause at all unless the behavior is `ThrowException`
+- `release()` no longer forgets a lock whose release never reached the engine. A dropped connection used to clear the reference count while the server still held the lock, so nothing tracked it and no retry was possible; the bookkeeping is now dropped only on an answer — released, or never established by this session — and a failed call can be retried. `releaseLocks()` with no arguments stops on the first lock whose release did not reach the engine, instead of retrying it in a loop
+- A keyset value of `null` is now rejected instead of producing a comparison against `NULL`, which is never true and would have dropped the rest of the page without a word
+- An array handed to a scalar criteria operator — `new Filter('id', Operator::Equal, [1, 2])` — is now rejected instead of binding a list to `= :parameter` and failing in the driver with an unrelated message
+
+### Changed
+
+- Symfony development constraints now accept 7.x and 8.x
+- `isDateTimeArrayColumn()`, `isUidArrayColumn()` and `parseDateTimeArrayFilterValue()` on `AbstractRepository` are `protected` rather than `private`, so a subclass can narrow the conversion rules
+- The "not established by this thread" release message reads "by this session", now that it is shared by both engines
+- `infection.json5` raises `minMsi` and `minCoveredMsi` from 80 to 84, the score the suite now measures
+- `README.md` no longer describes the package as being "for MySQL": the repository, criteria and entity trait code carries no platform specific SQL, and only the DQL functions and `MySqlWalker` are tied to the MySQL family. `CONTRIBUTING.md` and the CI comments now name PostgreSQL wherever they enumerate the integration engines
+
 ## [v4.2.0] - 2026-08-17 - The join index hint actually fires, and the SQL is finally executed
 
 ### Fixed
@@ -499,7 +527,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `MySqlWalker` — custom SQL walker adding `USE INDEX` / `IGNORE INDEX` / `FORCE INDEX` / `FOR UPDATE` hints
 - Dev infrastructure: Docker container, git hooks (pre-commit with php-cs-fixer + lint + PHPUnit), PHP-CS-Fixer configuration, PHPUnit 9 test scaffolding
 
-[Unreleased]: https://github.com/precision-soft/doctrine-utility/compare/v4.2.0...HEAD
+[Unreleased]: https://github.com/precision-soft/doctrine-utility/compare/v4.3.0...HEAD
+
+[v4.3.0]: https://github.com/precision-soft/doctrine-utility/compare/v4.2.0...v4.3.0
 
 [v4.2.0]: https://github.com/precision-soft/doctrine-utility/compare/v4.1.12...v4.2.0
 

@@ -1,0 +1,18 @@
+<?php
+
+declare(strict_types=1);
+
+/*
+ * Copyright (c) Precision Soft
+ */
+
+namespace PrecisionSoft\Doctrine\Utility\Repository\Criteria;
+
+readonly class Filter
+{
+    public function __construct(
+        public string $field,
+        public Operator $operator,
+        public mixed $value = null,
+    ) {}
+}

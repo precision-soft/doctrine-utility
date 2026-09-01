@@ -10,6 +10,7 @@ namespace PrecisionSoft\Doctrine\Utility\Test\Utility;
 
 use PrecisionSoft\Doctrine\Utility\Exception\Exception;
 use PrecisionSoft\Doctrine\Utility\Repository\AbstractRepository;
+use PrecisionSoft\Doctrine\Utility\Repository\Criteria\Criteria;
 use PrecisionSoft\Doctrine\Utility\Test\Utility\Entity\FilterSubject;
 use UnitEnum;
 
@@ -22,6 +23,18 @@ final class FilterSubjectRepository extends AbstractRepository
 {
     /** @var array<class-string<UnitEnum>, UnitEnum> */
     private array $flagOverrides = [];
+
+    /** @return list<int> */
+    public function findIdsByCriteria(Criteria $criteria): array
+    {
+        $queryBuilder = $this->createQueryBuilderFromCriteria($criteria);
+        $queryBuilder->select(static::getAlias() . '.id');
+
+        /** @var list<array{id: int}> $rows */
+        $rows = $queryBuilder->getQuery()->getArrayResult();
+
+        return \array_map(static fn(array $row): int => $row['id'], $rows);
+    }
 
     /**
      * @param array<string, mixed> $filters

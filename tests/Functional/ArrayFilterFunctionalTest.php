@@ -16,6 +16,12 @@ use PHPUnit\Framework\Attributes\DataProviderExternal;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use PrecisionSoft\Doctrine\Utility\Exception\Exception;
+use PrecisionSoft\Doctrine\Utility\Repository\Criteria\Criteria;
+use PrecisionSoft\Doctrine\Utility\Repository\Criteria\Direction;
+use PrecisionSoft\Doctrine\Utility\Repository\Criteria\Filter;
+use PrecisionSoft\Doctrine\Utility\Repository\Criteria\Keyset;
+use PrecisionSoft\Doctrine\Utility\Repository\Criteria\Operator;
+use PrecisionSoft\Doctrine\Utility\Repository\Criteria\Sort;
 use PrecisionSoft\Doctrine\Utility\Repository\EmptyArrayFilterBehavior;
 use PrecisionSoft\Doctrine\Utility\Test\Repository\Fixture\IntBackedEnum;
 use PrecisionSoft\Doctrine\Utility\Test\Repository\Fixture\StringBackedEnum;
@@ -227,6 +233,131 @@ final class ArrayFilterFunctionalTest extends TestCase
         $this->expectException(Exception::class);
 
         $repository->findIdsByFilters(['label' => []]);
+    }
+
+    #[DataProviderExternal(IntegrationDatabase::class, 'dataProviderPortableEngine')]
+    public function testTypedCriteriaSupportsFiltersSortLimitAndKeyset(string $environmentVariable): void
+    {
+        $repository = $this->boot($environmentVariable);
+        $sorts = [new Sort('label', Direction::Ascending), new Sort('id', Direction::Ascending)];
+
+        static::assertSame(
+            [$this->identifiers['alpha'], $this->identifiers['beta']],
+            $repository->findIdsByCriteria(new Criteria(
+                filters: [new Filter('label', Operator::NotEqual, 'gamma')],
+                sorts: $sorts,
+                limit: 2,
+            )),
+        );
+        static::assertSame(
+            [$this->identifiers['beta'], $this->identifiers['gamma']],
+            $repository->findIdsByCriteria(new Criteria(
+                sorts: $sorts,
+                keyset: new Keyset(['label' => 'alpha', 'id' => $this->identifiers['alpha']]),
+            )),
+        );
+    }
+
+    #[DataProviderExternal(IntegrationDatabase::class, 'dataProviderPortableEngine')]
+    public function testTypedCriteriaConvertsUidValuesInsideAnInFilter(string $environmentVariable): void
+    {
+        $repository = $this->boot($environmentVariable);
+
+        static::assertSame(
+            [$this->identifiers['alpha'], $this->identifiers['beta']],
+            $repository->findIdsByCriteria(new Criteria(
+                filters: [new Filter(
+                    'uuid',
+                    Operator::In,
+                    [Uuid::fromString(static::UUID_ALPHA), Uuid::fromString(static::UUID_BETA)],
+                )],
+                sorts: [new Sort('id', Direction::Ascending)],
+            )),
+        );
+    }
+
+    #[DataProviderExternal(IntegrationDatabase::class, 'dataProviderPortableEngine')]
+    public function testTypedCriteriaConvertsBinaryValuesInsideAnInFilter(string $environmentVariable): void
+    {
+        $repository = $this->boot($environmentVariable);
+
+        static::assertSame(
+            [$this->identifiers['alpha'], $this->identifiers['gamma']],
+            $repository->findIdsByCriteria(new Criteria(
+                filters: [new Filter(
+                    'binaryUuid',
+                    Operator::In,
+                    [static::BINARY_UUID_ALPHA, static::BINARY_UUID_GAMMA],
+                )],
+                sorts: [new Sort('id', Direction::Ascending)],
+            )),
+        );
+    }
+
+    #[DataProviderExternal(IntegrationDatabase::class, 'dataProviderPortableEngine')]
+    public function testTypedCriteriaConvertsDateValuesInsideAnInFilter(string $environmentVariable): void
+    {
+        $repository = $this->boot($environmentVariable);
+
+        static::assertSame(
+            [$this->identifiers['alpha'], $this->identifiers['beta']],
+            $repository->findIdsByCriteria(new Criteria(
+                filters: [new Filter(
+                    'dateValue',
+                    Operator::In,
+                    [new DateTime('2026-01-01'), new DateTimeImmutable('2026-02-02')],
+                )],
+                sorts: [new Sort('id', Direction::Ascending)],
+            )),
+        );
+    }
+
+    #[DataProviderExternal(IntegrationDatabase::class, 'dataProviderPortableEngine')]
+    public function testTypedCriteriaWalksADescendingKeyset(string $environmentVariable): void
+    {
+        $repository = $this->boot($environmentVariable);
+        $sorts = [new Sort('label', Direction::Descending), new Sort('id', Direction::Descending)];
+
+        static::assertSame(
+            [$this->identifiers['gamma'], $this->identifiers['beta']],
+            $repository->findIdsByCriteria(new Criteria(sorts: $sorts, limit: 2)),
+        );
+        static::assertSame(
+            [$this->identifiers['beta'], $this->identifiers['alpha']],
+            $repository->findIdsByCriteria(new Criteria(
+                sorts: $sorts,
+                keyset: new Keyset(['label' => 'gamma', 'id' => $this->identifiers['gamma']]),
+            )),
+        );
+    }
+
+    #[DataProviderExternal(IntegrationDatabase::class, 'dataProviderPortableEngine')]
+    public function testTypedCriteriaWalksAKeysetWithMixedDirections(string $environmentVariable): void
+    {
+        $repository = $this->boot($environmentVariable);
+        $sorts = [new Sort('label', Direction::Ascending), new Sort('id', Direction::Descending)];
+
+        static::assertSame(
+            [$this->identifiers['beta'], $this->identifiers['gamma']],
+            $repository->findIdsByCriteria(new Criteria(
+                sorts: $sorts,
+                keyset: new Keyset(['label' => 'alpha', 'id' => $this->identifiers['alpha']]),
+            )),
+        );
+    }
+
+    #[DataProviderExternal(IntegrationDatabase::class, 'dataProviderPortableEngine')]
+    public function testTypedCriteriaRejectsANullKeysetValue(string $environmentVariable): void
+    {
+        $repository = $this->boot($environmentVariable);
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('keyset value for `label` must not be null');
+
+        $repository->findIdsByCriteria(new Criteria(
+            sorts: [new Sort('label')],
+            keyset: new Keyset(['label' => null]),
+        ));
     }
 
     private function boot(string $environmentVariable): FilterSubjectRepository

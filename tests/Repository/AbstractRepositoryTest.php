@@ -29,6 +29,11 @@ use Mockery\MockInterface;
 use PrecisionSoft\Doctrine\Utility\Exception\Exception;
 use PrecisionSoft\Doctrine\Utility\Join\JoinCollection;
 use PrecisionSoft\Doctrine\Utility\Repository\AbstractRepository;
+use PrecisionSoft\Doctrine\Utility\Repository\Criteria\Criteria;
+use PrecisionSoft\Doctrine\Utility\Repository\Criteria\Filter;
+use PrecisionSoft\Doctrine\Utility\Repository\Criteria\Keyset;
+use PrecisionSoft\Doctrine\Utility\Repository\Criteria\Operator;
+use PrecisionSoft\Doctrine\Utility\Repository\Criteria\Sort;
 use PrecisionSoft\Doctrine\Utility\Repository\DoctrineRepository;
 use PrecisionSoft\Doctrine\Utility\Repository\EmptyArrayFilterBehavior;
 use PrecisionSoft\Doctrine\Utility\Test\Repository\Fixture\BinaryUuidType;
@@ -343,7 +348,7 @@ final class AbstractRepositoryTest extends AbstractTestCase
         $queryBuilderMock->shouldReceive('andWhere')
             ->andReturnSelf();
         $queryBuilderMock->shouldReceive('setParameter')
-            ->with('id', $values)
+            ->with('id', $values, null)
             ->once()
             ->andReturnSelf();
 
@@ -370,7 +375,7 @@ final class AbstractRepositoryTest extends AbstractTestCase
             ->andReturnSelf();
 
         $queryBuilderMock->shouldReceive('setParameter')
-            ->with('position', $numbers)
+            ->with('position', $numbers, null)
             ->once()
             ->andReturnSelf();
 
@@ -396,7 +401,7 @@ final class AbstractRepositoryTest extends AbstractTestCase
         $queryBuilderMock->shouldReceive('andWhere')
             ->andReturnSelf();
         $queryBuilderMock->shouldReceive('setParameter')
-            ->with('code', $codes)
+            ->with('code', $codes, null)
             ->once()
             ->andReturnSelf();
 
@@ -526,7 +531,7 @@ final class AbstractRepositoryTest extends AbstractTestCase
         $queryBuilderMock->shouldReceive('andWhere')
             ->andReturnSelf();
         $queryBuilderMock->shouldReceive('setParameter')
-            ->with('payload', $values)
+            ->with('payload', $values, null)
             ->once()
             ->andReturnSelf();
 
@@ -662,7 +667,7 @@ final class AbstractRepositoryTest extends AbstractTestCase
         $queryBuilderMock->shouldReceive('andWhere')
             ->andReturnSelf();
         $queryBuilderMock->shouldReceive('setParameter')
-            ->with('id', $values)
+            ->with('id', $values, null)
             ->once()
             ->andReturnSelf();
 
@@ -690,7 +695,7 @@ final class AbstractRepositoryTest extends AbstractTestCase
         $queryBuilderMock->shouldReceive('andWhere')
             ->andReturnSelf();
         $queryBuilderMock->shouldReceive('setParameter')
-            ->with('id', $values)
+            ->with('id', $values, null)
             ->once()
             ->andReturnSelf();
 
@@ -743,7 +748,7 @@ final class AbstractRepositoryTest extends AbstractTestCase
         $queryBuilderMock->shouldReceive('andWhere')
             ->andReturnSelf();
         $queryBuilderMock->shouldReceive('setParameter')
-            ->with('payload', $values)
+            ->with('payload', $values, null)
             ->once()
             ->andReturnSelf();
 
@@ -769,7 +774,7 @@ final class AbstractRepositoryTest extends AbstractTestCase
         $queryBuilderMock->shouldReceive('andWhere')
             ->andReturnSelf();
         $queryBuilderMock->shouldReceive('setParameter')
-            ->with('status', $statuses)
+            ->with('status', $statuses, null)
             ->once()
             ->andReturnSelf();
 
@@ -795,7 +800,7 @@ final class AbstractRepositoryTest extends AbstractTestCase
         $queryBuilderMock->shouldReceive('andWhere')
             ->andReturnSelf();
         $queryBuilderMock->shouldReceive('setParameter')
-            ->with('kind', $kinds)
+            ->with('kind', $kinds, null)
             ->once()
             ->andReturnSelf();
 
@@ -822,7 +827,7 @@ final class AbstractRepositoryTest extends AbstractTestCase
             ->andReturnSelf();
 
         $queryBuilderMock->shouldReceive('setParameter')
-            ->with('owner', $ownerValues)
+            ->with('owner', $ownerValues, null)
             ->once()
             ->andReturnSelf();
 
@@ -885,7 +890,7 @@ final class AbstractRepositoryTest extends AbstractTestCase
             ->andReturnSelf();
 
         $queryBuilderMock->shouldReceive('setParameter')
-            ->with('id', $ids)
+            ->with('id', $ids, null)
             ->once()
             ->andReturnSelf();
 
@@ -1049,5 +1054,190 @@ final class AbstractRepositoryTest extends AbstractTestCase
         $abstractRepositoryMock->shouldNotReceive('attachJoins');
 
         static::assertNull($reflectionMethod->invoke($abstractRepositoryMock, $queryBuilderMock, []));
+    }
+
+    public function testCreateQueryBuilderFromCriteriaThrowsOnUnmappedFilterField(): void
+    {
+        $abstractRepositoryMock = $this->mockCriteriaRepository(Mockery::mock(QueryBuilder::class), ['missing' => false]);
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('criteria field `missing` is not mapped');
+
+        $this->invokeCriteria($abstractRepositoryMock, new Criteria(
+            filters: [new Filter('missing', Operator::Equal, 'value')],
+        ));
+    }
+
+    public function testCreateQueryBuilderFromCriteriaThrowsOnUnmappedSortField(): void
+    {
+        $abstractRepositoryMock = $this->mockCriteriaRepository(Mockery::mock(QueryBuilder::class), ['missing' => false]);
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('sort field `missing` is not mapped');
+
+        $this->invokeCriteria($abstractRepositoryMock, new Criteria(sorts: [new Sort('missing')]));
+    }
+
+    public function testCreateQueryBuilderFromCriteriaThrowsWhenAnInOperatorGetsNoArray(): void
+    {
+        $abstractRepositoryMock = $this->mockCriteriaRepository(Mockery::mock(QueryBuilder::class), ['label' => true]);
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('criteria operator `IN` requires an array value');
+
+        $this->invokeCriteria($abstractRepositoryMock, new Criteria(
+            filters: [new Filter('label', Operator::In, 'not-an-array')],
+        ));
+    }
+
+    public function testCreateQueryBuilderFromCriteriaForcesAnEmptyInFilterToMatchNothing(): void
+    {
+        $queryBuilderMock = Mockery::mock(QueryBuilder::class);
+        $queryBuilderMock->shouldReceive('andWhere')
+            ->with("'label' = 'label-emptyFilter'")
+            ->once()
+            ->andReturnSelf();
+
+        $abstractRepositoryMock = $this->mockCriteriaRepository($queryBuilderMock, ['label' => true]);
+
+        $this->invokeCriteria($abstractRepositoryMock, new Criteria(
+            filters: [new Filter('label', Operator::In, [])],
+        ));
+    }
+
+    public function testCreateQueryBuilderFromCriteriaLeavesAnEmptyNotInFilterUnconstrained(): void
+    {
+        $queryBuilderMock = Mockery::mock(QueryBuilder::class);
+        $queryBuilderMock->shouldNotReceive('andWhere');
+
+        $abstractRepositoryMock = $this->mockCriteriaRepository($queryBuilderMock, ['label' => true]);
+
+        $this->invokeCriteria($abstractRepositoryMock, new Criteria(
+            filters: [new Filter('label', Operator::NotIn, [])],
+        ));
+    }
+
+    public function testCreateQueryBuilderFromCriteriaThrowsOnAnEmptyNotInFilterWhenTheFlagSaysSo(): void
+    {
+        $abstractRepositoryMock = $this->mockCriteriaRepository(Mockery::mock(QueryBuilder::class), ['label' => true]);
+        $abstractRepositoryMock->shouldReceive('getFlags')
+            ->andReturn([EmptyArrayFilterBehavior::class => EmptyArrayFilterBehavior::ThrowException]);
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('expected non-empty array, got empty array');
+
+        $this->invokeCriteria($abstractRepositoryMock, new Criteria(
+            filters: [new Filter('label', Operator::NotIn, [])],
+        ));
+    }
+
+    public function testCreateQueryBuilderFromCriteriaThrowsWhenAScalarOperatorGetsAnArray(): void
+    {
+        $abstractRepositoryMock = $this->mockCriteriaRepository(Mockery::mock(QueryBuilder::class), ['label' => true]);
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('criteria operator `=` requires a single value');
+
+        $this->invokeCriteria($abstractRepositoryMock, new Criteria(
+            filters: [new Filter('label', Operator::Equal, ['alpha', 'beta'])],
+        ));
+    }
+
+    public function testCreateQueryBuilderFromCriteriaThrowsWhenKeysetHasNoSort(): void
+    {
+        $abstractRepositoryMock = $this->mockCriteriaRepository(Mockery::mock(QueryBuilder::class), []);
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('keyset pagination requires at least one sort');
+
+        $this->invokeCriteria($abstractRepositoryMock, new Criteria(keyset: new Keyset(['id' => 1])));
+    }
+
+    public function testCreateQueryBuilderFromCriteriaThrowsWhenAKeysetValueIsMissing(): void
+    {
+        $queryBuilderMock = Mockery::mock(QueryBuilder::class);
+        $queryBuilderMock->shouldReceive('addOrderBy')->andReturnSelf();
+
+        $abstractRepositoryMock = $this->mockCriteriaRepository($queryBuilderMock, ['id' => true]);
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('keyset value for `id` is missing');
+
+        $this->invokeCriteria($abstractRepositoryMock, new Criteria(
+            sorts: [new Sort('id')],
+            keyset: new Keyset(['label' => 'alpha']),
+        ));
+    }
+
+    public function testCreateQueryBuilderFromCriteriaThrowsWhenAKeysetValueIsNull(): void
+    {
+        $queryBuilderMock = Mockery::mock(QueryBuilder::class);
+        $queryBuilderMock->shouldReceive('addOrderBy')->andReturnSelf();
+
+        $abstractRepositoryMock = $this->mockCriteriaRepository($queryBuilderMock, ['id' => true]);
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('keyset value for `id` must not be null');
+
+        $this->invokeCriteria($abstractRepositoryMock, new Criteria(
+            sorts: [new Sort('id')],
+            keyset: new Keyset(['id' => null]),
+        ));
+    }
+
+    public function testCreateQueryBuilderFromCriteriaThrowsOnANonPositiveLimit(): void
+    {
+        $abstractRepositoryMock = $this->mockCriteriaRepository(Mockery::mock(QueryBuilder::class), []);
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('criteria limit must be positive');
+
+        $this->invokeCriteria($abstractRepositoryMock, new Criteria(limit: 0));
+    }
+
+    public function testCreateQueryBuilderFromCriteriaEmitsANullCheckWithoutBindingAParameter(): void
+    {
+        $queryBuilderMock = Mockery::mock(QueryBuilder::class);
+        $queryBuilderMock->shouldReceive('andWhere')
+            ->with(Mockery::on(static fn(string $clause): bool => \str_ends_with($clause, '.label IS NULL')))
+            ->once()
+            ->andReturnSelf();
+        $queryBuilderMock->shouldNotReceive('setParameter');
+
+        $abstractRepositoryMock = $this->mockCriteriaRepository($queryBuilderMock, ['label' => true]);
+
+        $this->invokeCriteria($abstractRepositoryMock, new Criteria(
+            filters: [new Filter('label', Operator::IsNull)],
+        ));
+    }
+
+    /**
+     * @param array<string, bool> $mappedFields
+     */
+    private function mockCriteriaRepository(QueryBuilder $queryBuilder, array $mappedFields): AbstractRepository&MockInterface
+    {
+        $abstractRepositoryMock = $this->get(AbstractRepository::class);
+        $abstractRepositoryMock->shouldAllowMockingProtectedMethods();
+        $abstractRepositoryMock->shouldReceive('createQueryBuilder')
+            ->andReturn($queryBuilder);
+
+        $doctrineRepositoryMock = Mockery::mock(DoctrineRepository::class);
+
+        foreach ($mappedFields as $fieldName => $isMapped) {
+            $doctrineRepositoryMock->shouldReceive('hasField')
+                ->with($fieldName)
+                ->andReturn($isMapped);
+        }
+
+        $abstractRepositoryMock->shouldReceive('getDoctrineRepository')
+            ->andReturn($doctrineRepositoryMock);
+
+        return $abstractRepositoryMock;
+    }
+
+    private function invokeCriteria(AbstractRepository $abstractRepository, Criteria $criteria): void
+    {
+        (new ReflectionMethod(AbstractRepository::class, 'createQueryBuilderFromCriteria'))
+            ->invoke($abstractRepository, $criteria);
     }
 }

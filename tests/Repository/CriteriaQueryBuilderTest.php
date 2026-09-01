@@ -1,0 +1,174 @@
+<?php
+
+declare(strict_types=1);
+
+/*
+ * Copyright (c) Precision Soft
+ */
+
+namespace PrecisionSoft\Doctrine\Utility\Test\Repository;
+
+use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\Query\Expr;
+use Doctrine\ORM\QueryBuilder;
+use Mockery;
+use Mockery\Adapter\Phpunit\MockeryPHPUnitIntegration;
+use PHPUnit\Framework\TestCase;
+use PrecisionSoft\Doctrine\Utility\Repository\Criteria\Criteria;
+use PrecisionSoft\Doctrine\Utility\Repository\Criteria\Direction;
+use PrecisionSoft\Doctrine\Utility\Repository\Criteria\Filter;
+use PrecisionSoft\Doctrine\Utility\Repository\Criteria\Keyset;
+use PrecisionSoft\Doctrine\Utility\Repository\Criteria\Operator;
+use PrecisionSoft\Doctrine\Utility\Repository\Criteria\Sort;
+use PrecisionSoft\Doctrine\Utility\Repository\DoctrineRepository;
+use PrecisionSoft\Doctrine\Utility\Test\Repository\Fixture\CriteriaSubjectRepository;
+use stdClass;
+
+/**
+ * Asserts the DQL itself: the row counts are covered by the functional suite, the clause shape is not.
+ *
+ * @internal
+ */
+final class CriteriaQueryBuilderTest extends TestCase
+{
+    use MockeryPHPUnitIntegration;
+
+    private const DQL_PREFIX = 'SELECT FROM stdClass criteriaSubjectRepository ';
+
+    public function testEachComparisonOperatorReachesTheDqlWithItsOwnParameter(): void
+    {
+        $queryBuilder = $this->build(new Criteria(filters: [
+            new Filter('label', Operator::Equal, 'alpha'),
+            new Filter('position', Operator::GreaterThanOrEqual, 5),
+            new Filter('code', Operator::Like, '%beta%'),
+        ]));
+
+        static::assertSame(
+            static::DQL_PREFIX . 'WHERE criteriaSubjectRepository.label = :criteria_0'
+            . ' AND criteriaSubjectRepository.position >= :criteria_1'
+            . ' AND criteriaSubjectRepository.code LIKE :criteria_2',
+            $queryBuilder->getDQL(),
+        );
+        static::assertSame('alpha', $queryBuilder->getParameter('criteria_0')?->getValue());
+        static::assertSame(5, $queryBuilder->getParameter('criteria_1')?->getValue());
+    }
+
+    public function testTheSameFieldCanCarryTwoFiltersWithoutTheParametersColliding(): void
+    {
+        $queryBuilder = $this->build(new Criteria(filters: [
+            new Filter('position', Operator::GreaterThan, 1),
+            new Filter('position', Operator::LessThan, 9),
+        ]));
+
+        static::assertSame(
+            static::DQL_PREFIX . 'WHERE criteriaSubjectRepository.position > :criteria_0 AND criteriaSubjectRepository.position < :criteria_1',
+            $queryBuilder->getDQL(),
+        );
+        static::assertSame(1, $queryBuilder->getParameter('criteria_0')?->getValue());
+        static::assertSame(9, $queryBuilder->getParameter('criteria_1')?->getValue());
+    }
+
+    public function testTheNullOperatorsBindNoParameter(): void
+    {
+        $queryBuilder = $this->build(new Criteria(filters: [
+            new Filter('deletedAt', Operator::IsNull),
+            new Filter('label', Operator::IsNotNull),
+        ]));
+
+        static::assertSame(
+            static::DQL_PREFIX . 'WHERE criteriaSubjectRepository.deletedAt IS NULL AND criteriaSubjectRepository.label IS NOT NULL',
+            $queryBuilder->getDQL(),
+        );
+        static::assertCount(0, $queryBuilder->getParameters());
+    }
+
+    public function testTheListOperatorsWrapTheirParameterInParentheses(): void
+    {
+        $queryBuilder = $this->build(new Criteria(filters: [
+            new Filter('label', Operator::In, ['alpha', 'beta']),
+            new Filter('code', Operator::NotIn, ['gamma']),
+        ]));
+
+        static::assertSame(
+            static::DQL_PREFIX . 'WHERE criteriaSubjectRepository.label IN (:criteria_0) AND criteriaSubjectRepository.code NOT IN (:criteria_1)',
+            $queryBuilder->getDQL(),
+        );
+    }
+
+    public function testSortsKeepTheirOrderAndDirection(): void
+    {
+        $queryBuilder = $this->build(new Criteria(sorts: [
+            new Sort('label', Direction::Descending),
+            new Sort('id', Direction::Ascending),
+        ]));
+
+        static::assertSame(
+            static::DQL_PREFIX . 'ORDER BY criteriaSubjectRepository.label DESC, criteriaSubjectRepository.id ASC',
+            $queryBuilder->getDQL(),
+        );
+    }
+
+    public function testASingleSortKeysetComparesOnlyThatField(): void
+    {
+        $queryBuilder = $this->build(new Criteria(
+            sorts: [new Sort('id')],
+            keyset: new Keyset(['id' => 7]),
+        ));
+
+        static::assertSame(
+            static::DQL_PREFIX . 'WHERE (criteriaSubjectRepository.id > :keyset_0) ORDER BY criteriaSubjectRepository.id ASC',
+            $queryBuilder->getDQL(),
+        );
+        static::assertSame(7, $queryBuilder->getParameter('keyset_0')?->getValue());
+    }
+
+    public function testAMixedDirectionKeysetEmulatesARowValueComparison(): void
+    {
+        $queryBuilder = $this->build(new Criteria(
+            sorts: [new Sort('label', Direction::Ascending), new Sort('id', Direction::Descending)],
+            keyset: new Keyset(['label' => 'alpha', 'id' => 7]),
+        ));
+
+        static::assertSame(
+            static::DQL_PREFIX . 'WHERE (criteriaSubjectRepository.label > :keyset_0'
+            . ' OR (criteriaSubjectRepository.label = :keyset_0 AND criteriaSubjectRepository.id < :keyset_1))'
+            . ' ORDER BY criteriaSubjectRepository.label ASC, criteriaSubjectRepository.id DESC',
+            $queryBuilder->getDQL(),
+        );
+    }
+
+    public function testAThreeFieldKeysetChainsEveryPrecedingEquality(): void
+    {
+        $queryBuilder = $this->build(new Criteria(
+            sorts: [new Sort('label'), new Sort('code'), new Sort('id')],
+            keyset: new Keyset(['label' => 'alpha', 'code' => 'beta', 'id' => 7]),
+        ));
+
+        static::assertStringContainsString(
+            '(criteriaSubjectRepository.label = :keyset_0 AND criteriaSubjectRepository.code = :keyset_1'
+            . ' AND criteriaSubjectRepository.id > :keyset_2)',
+            $queryBuilder->getDQL(),
+        );
+    }
+
+    public function testTheSmallestAcceptedLimitIsOne(): void
+    {
+        static::assertSame(1, $this->build(new Criteria(limit: 1))->getMaxResults());
+    }
+
+    private function build(Criteria $criteria): QueryBuilder
+    {
+        $entityManagerMock = Mockery::mock(EntityManagerInterface::class);
+        $entityManagerMock->shouldReceive('getExpressionBuilder')
+            ->andReturn(new Expr());
+
+        $queryBuilder = new QueryBuilder($entityManagerMock);
+        $queryBuilder->from(stdClass::class, CriteriaSubjectRepository::getAlias());
+
+        $doctrineRepositoryMock = Mockery::mock(DoctrineRepository::class);
+        $doctrineRepositoryMock->shouldReceive('hasField')
+            ->andReturnTrue();
+
+        return (new CriteriaSubjectRepository($queryBuilder, $doctrineRepositoryMock))->build($criteria);
+    }
+}

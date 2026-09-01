@@ -35,7 +35,7 @@ The gate itself lives in one place — [`.dev/validate/all.sh`](./.dev/validate/
 ```bash
 .dev/validate/all.sh                  # cs-check, phpstan, test
 .dev/validate/all.sh --audit          # also audit the locked dependencies (needs the network)
-.dev/validate/all.sh --integration    # also run the integration suite (starts mysql and mariadb)
+.dev/validate/all.sh --integration    # also run the integration suite (starts mysql, mariadb and postgresql)
 .dev/validate/all.sh --mutation       # also run mutation testing (slow: the suite runs once per mutant)
 ```
 
@@ -52,17 +52,17 @@ The dev image ([`.dev/docker/Dockerfile`](./.dev/docker/Dockerfile)) pins the tw
 
 `php.dev.ini` is copied to `conf.d/zz-dev.ini`, so it sorts after every `docker-php-ext-*.ini` and has the last word. It lifts `memory_limit`, which `php.ini-production` ships at 128M — the `--memory-limit` flag stays in the composer scripts anyway, because CI runs them on a runner that never sees this overlay. `opcache.enable_cli = 0` is an explicit no-op: the CLI SAPI never loads opcache in these images, so stale code in the container is an inode problem in the bind mount, and `./dc restart dev` is the fix. The `.profile` copy is the last layer in the image, because every layer below a `COPY` is invalidated with it and `.profile` is the file that keeps changing.
 
-The `db` profile is started only on request (`./dc --profile db up -d`). `DATABASE_URL_MYSQL` and `DATABASE_URL_MARIADB` are set on the `dev` service whether or not it is up, so a test connects and skips rather than branching on configuration. The database services publish no ports and store on `tmpfs`, so their credentials reach nothing and no state survives a restart.
+The `db` profile is started only on request (`./dc --profile db up -d`). `DATABASE_URL_MYSQL`, `DATABASE_URL_MARIADB` and `DATABASE_URL_POSTGRESQL` are set on the `dev` service whether or not it is up, so a test connects and skips rather than branching on configuration. The database services publish no ports and store on `tmpfs`, so their credentials reach nothing and no state survives a restart.
 
-Mutation thresholds live in [`infection.json5`](./infection.json5) (`minMsi`, `minCoveredMsi`, both at 80). They are the measured baseline rounded down: raise them when the score improves, and never lower one to make a run pass.
+Mutation thresholds live in [`infection.json5`](./infection.json5) (`minMsi`, `minCoveredMsi`, both at 84). They are the measured baseline rounded down: raise them when the score improves, and never lower one to make a run pass.
 
 ### Continuous integration
 
-[`.github/workflows/ci.yml`](./.github/workflows/ci.yml) cannot call `.dev/validate/all.sh` — the script needs Docker and a compose project — so it runs the same composer scripts natively across a PHP version matrix instead. Four jobs: `static` (out of the matrix, since `cs-check` reads the same bytes on every interpreter), `test` (`phpstan` and the suite on 8.2, 8.3 and 8.4, because phpstan's inference follows the interpreter), `integration` (against real MySQL 8.4 and MariaDB 11.4 services) and `audit`.
+[`.github/workflows/ci.yml`](./.github/workflows/ci.yml) cannot call `.dev/validate/all.sh` — the script needs Docker and a compose project — so it runs the same composer scripts natively across a PHP version matrix instead. Five jobs: `static`, `test` (`phpstan` and the suite on PHP 8.2 through 8.5), `integration` (real MySQL 8.4, MariaDB 11.4 and PostgreSQL 17), `symfony-latest` (resolves the highest allowed Symfony development dependencies on PHP 8.5) and `audit`.
 
 The integration job passes `--fail-on-skipped`, which is deliberately not in `phpunit.xml.dist`: locally a missing database is a skip, so `composer check` stays offline, while in CI a broken `DATABASE_URL` must fail instead of printing a screen of green skips.
 
-Every job installs the locked dependencies and never resolves its own, so the analysers certify the code against the versions this repository ships. The `vendor/bin/.phpunit` cache step comes *after* the install, because `simple-phpunit` builds a tree `composer.lock` does not describe and composer owns `vendor/`, so it would clean a pre-restored directory back out.
+Every job except `symfony-latest` installs the locked dependencies. The latest lane deliberately resolves the upper dependency bound, while the other lanes keep reproducible analyser and test versions. The `vendor/bin/.phpunit` cache step comes *after* the install, because `simple-phpunit` builds a tree `composer.lock` does not describe and composer owns `vendor/`, so it would clean a pre-restored directory back out.
 
 ## Development workflow
 

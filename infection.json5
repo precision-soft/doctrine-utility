@@ -21,8 +21,8 @@
     // Without a threshold infection prints a score and exits 0, so the gate section could never fail.
     // These are the measured baseline rounded down, not an aspiration: raise them when the score
     // improves, and never lower one to make a run pass.
-    minMsi: 80,
-    minCoveredMsi: 80,
+    minMsi: 84,
+    minCoveredMsi: 84,
     mutators: {
         "@default": true
     }

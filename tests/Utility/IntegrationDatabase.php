@@ -39,11 +39,27 @@ use Symfony\Bridge\Doctrine\Types\UuidType;
  */
 final class IntegrationDatabase
 {
-    /** @return iterable<string, array{string}> */
+    /**
+     * The engines behind the MySQL only DQL functions, which `AbstractJsonSearch` gates on `AbstractMySQLPlatform`.
+     *
+     * @return iterable<string, array{string}>
+     */
     public static function dataProviderEngine(): iterable
     {
         yield 'mysql' => ['DATABASE_URL_MYSQL'];
         yield 'mariadb' => ['DATABASE_URL_MARIADB'];
+    }
+
+    /**
+     * Every engine this library supports, for the repository features that carry no platform specific SQL.
+     *
+     * @return iterable<string, array{string}>
+     */
+    public static function dataProviderPortableEngine(): iterable
+    {
+        yield from static::dataProviderEngine();
+
+        yield 'postgresql' => ['DATABASE_URL_POSTGRESQL'];
     }
 
     /**
@@ -62,7 +78,7 @@ final class IntegrationDatabase
 
         /* the scheme map is required: a bare `mysql://` DSN resolves to no driver. Parsing stays outside the try — only an unreachable server may become a skip */
         $connection = DriverManager::getConnection(
-            (new DsnParser(['mysql' => 'pdo_mysql', 'mariadb' => 'pdo_mysql']))->parse($databaseUrl),
+            (new DsnParser(['mysql' => 'pdo_mysql', 'mariadb' => 'pdo_mysql', 'postgresql' => 'pdo_pgsql']))->parse($databaseUrl),
         );
 
         try {

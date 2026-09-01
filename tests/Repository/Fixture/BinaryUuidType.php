@@ -10,6 +10,7 @@ namespace PrecisionSoft\Doctrine\Utility\Test\Repository\Fixture;
 
 use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Platforms\AbstractPlatform;
+use Doctrine\DBAL\Platforms\PostgreSQLPlatform;
 use Doctrine\DBAL\Types\Type;
 
 /**
@@ -22,7 +23,7 @@ class BinaryUuidType extends Type
     /** @param array<string, mixed> $column */
     public function getSQLDeclaration(array $column, AbstractPlatform $platform): string
     {
-        return 'BINARY(16)';
+        return true === $platform instanceof PostgreSQLPlatform ? 'BYTEA' : 'BINARY(16)';
     }
 
     public function getBindingType(): ParameterType

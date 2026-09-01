@@ -15,7 +15,10 @@ RUN apk add --no-cache shadow bash git && rm -rf /tmp/*
 
 RUN cp ${PHP_INI_DIR}/php.ini-production ${PHP_INI_DIR}/php.ini
 
-RUN docker-php-ext-install pdo_mysql
+RUN apk add --no-cache libpq \
+    && apk add --no-cache --virtual .pdo-build-deps postgresql-dev \
+    && docker-php-ext-install pdo_mysql pdo_pgsql \
+    && apk del .pdo-build-deps
 
 ARG PCOV_VERSION=1.0.12
 RUN apk add --no-cache --virtual .build-deps ${PHPIZE_DEPS} \

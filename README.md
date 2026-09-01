@@ -6,7 +6,7 @@
 [![Code Style PER-CS2.0](https://img.shields.io/badge/code%20style-PER--CS2.0-blue)](https://www.php-fig.org/per/coding-style/)
 [![License MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-Doctrine custom types, functions, and services for **MySQL**.
+Doctrine repository, function and locking utilities for **MySQL**, **MariaDB** and **PostgreSQL**.
 
 **You may fork and modify it as you wish.**
 
@@ -17,7 +17,8 @@ Any suggestions are welcomed.
 - PHP 8.2+
 - Doctrine ORM 3
 - Doctrine DBAL 4
-- MySQL **or MariaDB** (the DQL functions, `MySqlWalker` and `MysqlLockService` require one of the two; the integration suite runs against MySQL 8.4 and MariaDB 11.4)
+- MySQL **or MariaDB** for the DQL functions, `MySqlWalker` and `MysqlLockService`; `PostgresqlLockService` requires PostgreSQL instead. `AbstractRepository`, `DoctrineRepository` and the entity traits carry no platform specific SQL and run on any of the three
+- The integration suite runs against MySQL 8.4, MariaDB 11.4 and PostgreSQL 17
 
 ## Installation
 
@@ -141,6 +142,49 @@ class ProductRepository extends AbstractRepository
 }
 ```
 
+### Typed criteria
+
+`createQueryBuilderFromCriteria()` is a typed alternative to the array filter API, for callers that build a query from validated input rather than from a hand-written array. Every field is checked against the mapping, so an unmapped name fails loudly instead of reaching DQL.
+
+```php
+use PrecisionSoft\Doctrine\Utility\Repository\Criteria\Criteria;
+use PrecisionSoft\Doctrine\Utility\Repository\Criteria\Direction;
+use PrecisionSoft\Doctrine\Utility\Repository\Criteria\Filter;
+use PrecisionSoft\Doctrine\Utility\Repository\Criteria\Keyset;
+use PrecisionSoft\Doctrine\Utility\Repository\Criteria\Operator;
+use PrecisionSoft\Doctrine\Utility\Repository\Criteria\Sort;
+
+$criteria = new Criteria(
+    filters: [
+        new Filter('status', Operator::In, ['active', 'pending']),
+        new Filter('deletedAt', Operator::IsNull),
+    ],
+    sorts: [
+        new Sort('label', Direction::Ascending),
+        new Sort('id', Direction::Ascending),
+    ],
+    limit: 20,
+);
+
+$queryBuilder = $this->createQueryBuilderFromCriteria($criteria);
+```
+
+[`Operator`](./src/Repository/Criteria/Operator.php) covers `=`, `<>`, `>`, `>=`, `<`, `<=`, `IN`, `NOT IN`, `LIKE`, `IS NULL` and `IS NOT NULL`. `IN` and `NOT IN` bind through the same conversion pipeline as the array filter API, so a `Uuid`, a `DateTime` or a Symfony uid is converted by the column's Doctrine type rather than reaching the driver as a string. An empty `IN` array follows [the empty array filter behavior](#empty-array-filter-behavior) below; an empty `NOT IN` excludes nothing and therefore adds no clause.
+
+#### Keyset pagination
+
+Passing a [`Keyset`](./src/Repository/Criteria/Keyset.php) turns the sort list into a page boundary. It needs one value per sort field, and it emulates a row value comparison, so mixed sort directions still produce a deterministic page:
+
+```php
+$nextPage = new Criteria(
+    sorts: [new Sort('label'), new Sort('id')],
+    keyset: new Keyset(['label' => $lastRow['label'], 'id' => $lastRow['id']]),
+    limit: 20,
+);
+```
+
+Sort on a combination that is unique overall — append the identifier, as above — or rows on a tie will repeat or vanish between pages. A `null` keyset value is rejected: comparing against `NULL` is never true and would silently truncate the page.
+
 ### Empty array filter behavior
 
 When `attachGenericFilters()` receives an empty array as a filter value (e.g. `['ids' => []]`), it cannot generate a valid `IN ()` clause. The default behavior is `EmptyArrayFilterBehavior::MatchNone`, which appends an always-false marker condition (`'<filterName>' = '<filterName>-emptyFilter'`) so the query returns zero rows and the offending filter is grep-able in query logs.
@@ -214,14 +258,27 @@ Available functions:
 | `JSON_UNQUOTE`       | `JSON_UNQUOTE(value)`                                         | Unquote a JSON value                                            |
 | `DATE_FORMAT`        | `DATE_FORMAT(date, format)`                                   | Format a date                                                   |
 
-## MysqlLockService
+## Lock services
 
-A service for MySQL named locks (advisory locks) via `GET_LOCK()` / `RELEASE_LOCK()`.
+[`LockServiceInterface`](./src/Contract/LockServiceInterface.php) is the portable named-lock contract, implemented by [`MysqlLockService`](./src/Service/MysqlLockService.php) and [`PostgresqlLockService`](./src/Service/PostgresqlLockService.php) on the shared [`AbstractLockService`](./src/Service/AbstractLockService.php) base. Depend on the interface and let the container decide the engine.
+
+Two implementations are registered, so autowiring the interface is ambiguous and Symfony will refuse to compile the container. Name the one you want:
+
+```yaml
+# config/services.yaml
+services:
+    PrecisionSoft\Doctrine\Utility\Contract\LockServiceInterface:
+        alias: PrecisionSoft\Doctrine\Utility\Service\PostgresqlLockService
+```
+
+### MysqlLockService
+
+MySQL named locks via `GET_LOCK()` / `RELEASE_LOCK()`.
 
 ```php
-use PrecisionSoft\Doctrine\Utility\Service\MysqlLockService;
+use PrecisionSoft\Doctrine\Utility\Contract\LockServiceInterface;
 
-public function __construct(private MysqlLockService $lockService) {}
+public function __construct(private LockServiceInterface $lockService) {}
 
 $lockService->acquire('my-lock', timeout: 5);
 
@@ -237,7 +294,43 @@ $lockService->releaseLocks();
 
 Lock names longer than 64 characters are automatically hashed to fit MySQL's limit. Locks are reference-counted: calling `acquire()` multiple times with the same name increments a counter, and `release()` decrements it, only actually releasing the MySQL lock when the count reaches zero.
 
-All errors throw `MysqlLockException`.
+All errors throw [`MysqlLockException`](./src/Exception/MysqlLockException.php).
+
+### PostgresqlLockService
+
+The same contract on PostgreSQL session-level advisory locks. The lock name is hashed to a deterministic `(classid, objid)` pair, so any name of any length is usable without a server-side limit.
+
+```php
+use PrecisionSoft\Doctrine\Utility\Service\PostgresqlLockService;
+
+$lockService = new PostgresqlLockService($managerRegistry);
+
+$lockService->acquire('my-lock', timeout: 5);
+
+$lockService->release('my-lock');
+```
+
+PostgreSQL has no blocking `pg_advisory_lock` variant that takes a timeout, so `timeout` is honoured by polling `pg_try_advisory_lock()` until the deadline passes; a negative timeout is rejected rather than silently waiting forever.
+
+The connection must run on a PostgreSQL platform, and all errors throw [`PostgresqlLockException`](./src/Exception/PostgresqlLockException.php). Both exceptions extend [`LockException`](./src/Exception/LockException.php), so a consumer written against the interface can catch one type.
+
+### Who holds the lock
+
+`hasLock()` answers whether *any* session on the server holds the lock — that is what `IS_FREE_LOCK()` reports on MySQL and what `pg_locks` reports on PostgreSQL. It cannot tell "held by me" from "held by someone else", which is the wrong question for a caller deciding whether to do the work:
+
+```php
+if (true === $lockService->hasLockInCurrentSession('my-lock')) {
+    /* this connection owns it, so the critical section is ours */
+}
+```
+
+`hasLockInCurrentSession()` compares the owner against this very connection — `IS_USED_LOCK()` against `CONNECTION_ID()` on MySQL, `pg_locks.pid` against `pg_backend_pid()` on PostgreSQL.
+
+### Releasing and retrying
+
+`release()` drops its bookkeeping only when the engine answered: either it released the lock, or it reported the lock was never established by this session. When the call itself fails — a dropped connection, an unreachable server — the reference count is kept, so a later `release()` retries against the engine instead of leaving a lock held on the server with nothing tracking it. Pass `throwException: true` to see that failure; the default swallows it.
+
+`releaseLocks()` with no arguments drains every held lock, and stops on the first lock whose release did not reach the engine rather than retrying it in a loop.
 
 ## MySqlWalker (USE/FORCE/IGNORE INDEX)
 
@@ -347,7 +440,7 @@ stays fast and offline:
 .dev/validate/all.sh --integration
 ```
 
-Tests connect through `DATABASE_URL_MYSQL` and `DATABASE_URL_MARIADB` and skip themselves when those services are not running, so `composer check` never depends on them.
+Tests connect through `DATABASE_URL_MYSQL`, `DATABASE_URL_MARIADB` and `DATABASE_URL_POSTGRESQL` and skip themselves when those services are not running, so `composer check` never depends on them.
 
 Build against another PHP version with the `PHP_VERSION` build argument - each version is tagged as its own image, so switching back and forth costs nothing:
 

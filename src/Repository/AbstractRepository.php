@@ -31,6 +31,10 @@ use Doctrine\Persistence\ObjectManager;
 use Error;
 use PrecisionSoft\Doctrine\Utility\Exception\Exception;
 use PrecisionSoft\Doctrine\Utility\Join\JoinCollection;
+use PrecisionSoft\Doctrine\Utility\Repository\Criteria\Criteria;
+use PrecisionSoft\Doctrine\Utility\Repository\Criteria\Direction;
+use PrecisionSoft\Doctrine\Utility\Repository\Criteria\Filter;
+use PrecisionSoft\Doctrine\Utility\Repository\Criteria\Operator;
 use Psr\Log\LoggerInterface;
 use ReflectionClass;
 use Symfony\Bridge\Doctrine\Types\AbstractUidType;
@@ -159,6 +163,159 @@ abstract class AbstractRepository
         }
 
         return $queryBuilder;
+    }
+
+    /**
+     * @throws Exception if a criteria field is not mapped, or the criteria itself is inconsistent
+     */
+    protected function createQueryBuilderFromCriteria(
+        Criteria $criteria,
+        ?string $managerName = null,
+    ): QueryBuilder {
+        $queryBuilder = $this->createQueryBuilder($managerName);
+        $doctrineRepository = $this->getDoctrineRepository($managerName);
+
+        foreach ($criteria->filters as $index => $filter) {
+            if (false === $doctrineRepository->hasField($filter->field)) {
+                throw new Exception(\sprintf('criteria field `%s` is not mapped', $filter->field));
+            }
+
+            $this->attachCriteriaFilter($queryBuilder, $filter, 'criteria_' . $index);
+        }
+
+        foreach ($criteria->sorts as $sort) {
+            if (false === $doctrineRepository->hasField($sort->field)) {
+                throw new Exception(\sprintf('sort field `%s` is not mapped', $sort->field));
+            }
+
+            $queryBuilder->addOrderBy(static::getAlias() . '.' . $sort->field, $sort->direction->value);
+        }
+
+        if (null !== $criteria->keyset) {
+            $this->attachCriteriaKeyset($queryBuilder, $criteria);
+        }
+
+        if (null !== $criteria->limit) {
+            if ($criteria->limit < 1) {
+                throw new Exception('criteria limit must be positive');
+            }
+
+            $queryBuilder->setMaxResults($criteria->limit);
+        }
+
+        return $queryBuilder;
+    }
+
+    /**
+     * @throws Exception if the operator needs an array value and did not get one, or the empty array behavior throws
+     */
+    protected function attachCriteriaFilter(
+        QueryBuilder $queryBuilder,
+        Filter $filter,
+        string $parameterName,
+    ): void {
+        $field = static::getAlias() . '.' . $filter->field;
+
+        if (Operator::IsNull === $filter->operator || Operator::IsNotNull === $filter->operator) {
+            $queryBuilder->andWhere($field . ' ' . $filter->operator->value);
+
+            return;
+        }
+
+        if (Operator::In !== $filter->operator && Operator::NotIn !== $filter->operator) {
+            if (true === \is_array($filter->value)) {
+                throw new Exception(
+                    \sprintf('criteria operator `%s` requires a single value', $filter->operator->value),
+                );
+            }
+
+            $queryBuilder->andWhere(\sprintf('%s %s :%s', $field, $filter->operator->value, $parameterName))
+                ->setParameter($parameterName, $filter->value);
+
+            return;
+        }
+
+        if (false === \is_array($filter->value)) {
+            throw new Exception(
+                \sprintf('criteria operator `%s` requires an array value', $filter->operator->value),
+            );
+        }
+
+        if ([] === $filter->value) {
+            $this->handleEmptyCriteriaArrayFilter($queryBuilder, $filter);
+
+            return;
+        }
+
+        [$databaseValues, $parameterType] = $this->convertArrayFilterValues($filter->field, $filter->value);
+
+        $queryBuilder->andWhere(\sprintf('%s %s (:%s)', $field, $filter->operator->value, $parameterName))
+            ->setParameter($parameterName, $databaseValues, $parameterType);
+    }
+
+    /**
+     * @throws Exception if the empty array filter behavior is set to ThrowException
+     */
+    protected function handleEmptyCriteriaArrayFilter(QueryBuilder $queryBuilder, Filter $filter): void
+    {
+        $emptyArrayFilterBehavior = $this->getFlag(
+            EmptyArrayFilterBehavior::class,
+            EmptyArrayFilterBehavior::MatchNone,
+        );
+
+        /* `NOT IN ()` excludes no row, so outside the throwing behavior it has to add no clause at all */
+        if (
+            Operator::In === $filter->operator
+            || EmptyArrayFilterBehavior::ThrowException === $emptyArrayFilterBehavior
+        ) {
+            $this->handleEmptyArrayFilter($queryBuilder, $filter->field);
+        }
+    }
+
+    /**
+     * Emulates a row value comparison, which neither DQL nor every supported engine can express directly.
+     *
+     * @throws Exception if there is nothing to sort by, or a keyset value is missing or null
+     */
+    protected function attachCriteriaKeyset(QueryBuilder $queryBuilder, Criteria $criteria): void
+    {
+        if (null === $criteria->keyset) {
+            return;
+        }
+
+        if ([] === $criteria->sorts) {
+            throw new Exception('keyset pagination requires at least one sort');
+        }
+
+        $alias = static::getAlias();
+        $conditions = [];
+
+        foreach ($criteria->sorts as $index => $sort) {
+            if (false === \array_key_exists($sort->field, $criteria->keyset->values)) {
+                throw new Exception(\sprintf('keyset value for `%s` is missing', $sort->field));
+            }
+
+            if (null === $criteria->keyset->values[$sort->field]) {
+                throw new Exception(\sprintf('keyset value for `%s` must not be null', $sort->field));
+            }
+
+            $equalities = [];
+
+            for ($previous = 0; $previous < $index; ++$previous) {
+                $equalities[] = \sprintf('%s.%s = :keyset_%s', $alias, $criteria->sorts[$previous]->field, $previous);
+            }
+
+            $comparison = Direction::Ascending === $sort->direction ? '>' : '<';
+            $tail = \sprintf('%s.%s %s :keyset_%s', $alias, $sort->field, $comparison, $index);
+
+            $conditions[] = [] === $equalities
+                ? $tail
+                : '(' . \implode(' AND ', $equalities) . ' AND ' . $tail . ')';
+
+            $queryBuilder->setParameter('keyset_' . $index, $criteria->keyset->values[$sort->field]);
+        }
+
+        $queryBuilder->andWhere('(' . \implode(' OR ', $conditions) . ')');
     }
 
     /**
@@ -322,21 +479,31 @@ abstract class AbstractRepository
     ): void {
         $queryBuilder->andWhere(static::getAlias() . ".{$filterName} IN (:{$filterName})");
 
+        [$databaseValues, $parameterType] = $this->convertArrayFilterValues($filterName, $filterValue);
+
+        $queryBuilder->setParameter($filterName, $databaseValues, $parameterType);
+    }
+
+    /**
+     * The single conversion pipeline behind every `IN` list, whichever filter API built it.
+     *
+     * @param non-empty-array<array-key, mixed> $filterValue
+     *
+     * @return array{0: array<array-key, mixed>, 1: ArrayParameterType|null}
+     */
+    protected function convertArrayFilterValues(string $filterName, array $filterValue): array
+    {
         $manager = $this->managerRegistry->getManagerForClass($this->getEntityClass());
 
         if (false === ($manager instanceof EntityManagerInterface)) {
-            $queryBuilder->setParameter($filterName, $filterValue);
-
-            return;
+            return [$filterValue, null];
         }
 
         $classMetadata = $manager->getClassMetadata($this->getEntityClass());
         $fieldType = $classMetadata->getTypeOfField($filterName);
 
         if (false === $classMetadata->hasField($filterName) || null === $fieldType) {
-            $queryBuilder->setParameter($filterName, $filterValue);
-
-            return;
+            return [$filterValue, null];
         }
 
         $doctrineType = Type::getType($fieldType);
@@ -344,14 +511,13 @@ abstract class AbstractRepository
 
         if (ParameterType::BINARY === $doctrineType->getBindingType()) {
             try {
-                $databaseValues = \array_map(
-                    static fn(mixed $value): mixed => $doctrineType->convertToDatabaseValue($value, $platform),
-                    \array_values($filterValue),
-                );
-
-                $queryBuilder->setParameter($filterName, $databaseValues, ArrayParameterType::BINARY);
-
-                return;
+                return [
+                    \array_map(
+                        static fn(mixed $value): mixed => $doctrineType->convertToDatabaseValue($value, $platform),
+                        \array_values($filterValue),
+                    ),
+                    ArrayParameterType::BINARY,
+                ];
             } catch (ConversionException) {
                 /* falls through to the untyped binding below */
             }
@@ -360,14 +526,13 @@ abstract class AbstractRepository
         /* DBAL has no array parameter type for dates, so an object bound inside an array reaches the driver unconverted */
         if (true === $this->isDateTimeArrayColumn($doctrineType)) {
             try {
-                $databaseValues = \array_map(
-                    fn(mixed $value): mixed => $this->parseDateTimeArrayFilterValue($value, $doctrineType, $platform),
-                    \array_values($filterValue),
-                );
-
-                $queryBuilder->setParameter($filterName, $databaseValues, ArrayParameterType::STRING);
-
-                return;
+                return [
+                    \array_map(
+                        fn(mixed $value): mixed => $this->parseDateTimeArrayFilterValue($value, $doctrineType, $platform),
+                        \array_values($filterValue),
+                    ),
+                    ArrayParameterType::STRING,
+                ];
             } catch (ConversionException) {
                 /* falls through to the untyped binding below */
             }
@@ -376,14 +541,13 @@ abstract class AbstractRepository
         /* uid types bind as STRING and so miss the binary branch, yet without a native GUID type they are stored as BINARY(16) */
         if (true === $this->isUidArrayColumn($doctrineType)) {
             try {
-                $databaseValues = \array_map(
-                    static fn(mixed $value): mixed => $doctrineType->convertToDatabaseValue($value, $platform),
-                    \array_values($filterValue),
-                );
-
-                $queryBuilder->setParameter($filterName, $databaseValues, ArrayParameterType::STRING);
-
-                return;
+                return [
+                    \array_map(
+                        static fn(mixed $value): mixed => $doctrineType->convertToDatabaseValue($value, $platform),
+                        \array_values($filterValue),
+                    ),
+                    ArrayParameterType::STRING,
+                ];
             } catch (ConversionException) {
                 /* falls through to the untyped binding below */
             } catch (Error $error) {
@@ -394,10 +558,10 @@ abstract class AbstractRepository
             }
         }
 
-        $queryBuilder->setParameter($filterName, $filterValue);
+        return [$filterValue, null];
     }
 
-    private function isDateTimeArrayColumn(Type $doctrineType): bool
+    protected function isDateTimeArrayColumn(Type $doctrineType): bool
     {
         return $doctrineType instanceof PhpDateMappingType
             || $doctrineType instanceof PhpDateTimeMappingType
@@ -405,7 +569,7 @@ abstract class AbstractRepository
             || $doctrineType instanceof DateIntervalType;
     }
 
-    private function isUidArrayColumn(Type $doctrineType): bool
+    protected function isUidArrayColumn(Type $doctrineType): bool
     {
         /* symfony/doctrine-bridge is not a runtime dependency; the guard only makes explicit what instanceof already does without it */
         return true === \class_exists(AbstractUidType::class)
@@ -415,7 +579,7 @@ abstract class AbstractRepository
     /**
      * @throws ConversionException if the field's Doctrine type cannot convert the value even after matching its mutability
      */
-    private function parseDateTimeArrayFilterValue(
+    protected function parseDateTimeArrayFilterValue(
         mixed $value,
         Type $doctrineType,
         AbstractPlatform $platform,
@@ -428,11 +592,11 @@ abstract class AbstractRepository
             return $doctrineType->convertToDatabaseValue($value, $platform);
         } catch (ConversionException $conversionException) {
             /* mutable date types reject DateTimeImmutable and vice versa, so flip the mutability keeping the same instant */
-            if ($value instanceof DateTimeImmutable) {
+            if (true === $value instanceof DateTimeImmutable) {
                 return $doctrineType->convertToDatabaseValue(DateTime::createFromInterface($value), $platform);
             }
 
-            if ($value instanceof DateTime) {
+            if (true === $value instanceof DateTime) {
                 return $doctrineType->convertToDatabaseValue(DateTimeImmutable::createFromInterface($value), $platform);
             }
 

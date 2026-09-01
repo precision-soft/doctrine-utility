@@ -182,6 +182,47 @@ final class MysqlLockFunctionalTest extends TestCase
         $lockService->release($lockName, throwException: true);
     }
 
+    #[DataProviderExternal(IntegrationDatabase::class, 'dataProviderEngine')]
+    public function testForceRefreshDoesNotStackAnExtraLevelOnTheServer(string $environmentVariable): void
+    {
+        $lockService = $this->createLockService($environmentVariable);
+        $observer = $this->createConnection($environmentVariable);
+        $lockName = 'integration-lock-force-refresh';
+
+        $lockService->acquire($lockName);
+        $lockService->acquire($lockName, forceRefresh: true);
+
+        static::assertFalse($this->isFreeLock($observer, $lockName));
+
+        /* GET_LOCK is reentrant on the server too, so a refresh that simply re-ran it would need a second RELEASE_LOCK to free the name */
+        $lockService->release($lockName, throwException: true);
+
+        static::assertTrue($this->isFreeLock($observer, $lockName));
+    }
+
+    #[DataProviderExternal(IntegrationDatabase::class, 'dataProviderEngine')]
+    public function testHasLockInCurrentSessionSeparatesTheOwnerFromABystander(string $environmentVariable): void
+    {
+        $holder = $this->createLockService($environmentVariable);
+        $bystander = $this->createLockService($environmentVariable);
+        $lockName = 'integration-lock-ownership';
+
+        $holder->acquire($lockName);
+
+        try {
+            static::assertTrue($holder->hasLockInCurrentSession($lockName));
+            static::assertFalse($bystander->hasLockInCurrentSession($lockName));
+            static::assertTrue(
+                $bystander->hasLock($lockName),
+                'the cluster wide check cannot tell "held by me" from "held by anyone"',
+            );
+        } finally {
+            $holder->releaseLocks(null, throwException: true);
+        }
+
+        static::assertFalse($holder->hasLockInCurrentSession($lockName));
+    }
+
     private function createLockService(string $environmentVariable): MysqlLockService
     {
         $entityManager = IntegrationDatabase::createEntityManager($this->createConnection($environmentVariable));
