@@ -6,7 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
-## [v4.3.0] - 2026-09-01 - PostgreSQL advisory locks, a shared lock contract, and typed repository criteria
+## [v4.3.1] - 2026-09-01 - PostgreSQL advisory locks, a shared lock contract, and typed repository criteria
+
+Supersedes v4.3.0, which was withdrawn. Its tag was briefly pushed onto the v4.2.0 commit, Packagist indexed it there, and version immutability then blocked the corrected reference — so the published v4.3.0 would have served v4.2.0's code. The tag and the release were removed and the version soft-deleted on Packagist. This release carries identical code.
 
 ### Added
 
@@ -527,9 +529,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `MySqlWalker` — custom SQL walker adding `USE INDEX` / `IGNORE INDEX` / `FORCE INDEX` / `FOR UPDATE` hints
 - Dev infrastructure: Docker container, git hooks (pre-commit with php-cs-fixer + lint + PHPUnit), PHP-CS-Fixer configuration, PHPUnit 9 test scaffolding
 
-[Unreleased]: https://github.com/precision-soft/doctrine-utility/compare/v4.3.0...HEAD
+[Unreleased]: https://github.com/precision-soft/doctrine-utility/compare/v4.3.1...HEAD
 
-[v4.3.0]: https://github.com/precision-soft/doctrine-utility/compare/v4.2.0...v4.3.0
+[v4.3.1]: https://github.com/precision-soft/doctrine-utility/compare/v4.2.0...v4.3.1
 
 [v4.2.0]: https://github.com/precision-soft/doctrine-utility/compare/v4.1.12...v4.2.0
 
