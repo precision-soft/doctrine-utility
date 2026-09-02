@@ -43,25 +43,9 @@ services:
             retries: 20
             start_period: 30s
 
-    postgresql:
-        profiles: [ 'db' ]
-        image: postgres:17-alpine
-        restart: 'no'
-        environment:
-            POSTGRES_PASSWORD: postgres
-            POSTGRES_DB: test
-        tmpfs:
-            - /var/lib/postgresql/data
-        healthcheck:
-            test: [ 'CMD-SHELL', 'pg_isready -U postgres -d test' ]
-            interval: 5s
-            timeout: 5s
-            retries: 20
-            start_period: 20s
-
     mariadb:
         profiles: [ 'db' ]
-        image: mariadb:11.4
+        image: mariadb:11.8
         restart: 'no'
         environment:
             MARIADB_ROOT_PASSWORD: root
@@ -74,3 +58,19 @@ services:
             timeout: 5s
             retries: 20
             start_period: 30s
+
+    postgresql:
+        profiles: [ 'db' ]
+        image: postgres:18-alpine
+        restart: 'no'
+        environment:
+            POSTGRES_PASSWORD: postgres
+            POSTGRES_DB: test
+        tmpfs:
+            - /var/lib/postgresql
+        healthcheck:
+            test: [ 'CMD-SHELL', 'pg_isready -U postgres -d test' ]
+            interval: 5s
+            timeout: 5s
+            retries: 20
+            start_period: 20s
