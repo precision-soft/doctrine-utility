@@ -19,9 +19,9 @@ use Mockery\MockInterface;
 use PHPUnit\Framework\TestCase;
 use PrecisionSoft\Doctrine\Utility\Exception\MysqlLockException;
 use PrecisionSoft\Doctrine\Utility\Service\MysqlLockService;
+use PrecisionSoft\Doctrine\Utility\Test\Utility\Exception\FixtureException;
 use ReflectionMethod;
 use ReflectionProperty;
-use RuntimeException;
 
 /**
  * @internal
@@ -34,19 +34,6 @@ final class MysqlLockServiceTest extends TestCase
     private EntityManager&MockInterface $entityManager;
     private Connection&MockInterface $connection;
     private MysqlLockService $mysqlLockService;
-
-    protected function setUp(): void
-    {
-        $this->connection = Mockery::mock(Connection::class);
-        $this->entityManager = Mockery::mock(EntityManager::class);
-        $this->entityManager->shouldReceive('getConnection')
-            ->andReturn($this->connection);
-        $this->managerRegistry = Mockery::mock(ManagerRegistry::class);
-        $this->managerRegistry->shouldReceive('getManager')
-            ->byDefault()
-            ->andReturn($this->entityManager);
-        $this->mysqlLockService = new MysqlLockService($this->managerRegistry);
-    }
 
     public function testHasLockReturnsFalseWhenLockIsFree(): void
     {
@@ -730,7 +717,7 @@ final class MysqlLockServiceTest extends TestCase
             ->times(3)
             ->andReturnUsing(
                 static fn(): Result => $acquireResult,
-                static fn(): Result => throw new RuntimeException('the server went away'),
+                static fn(): Result => throw new FixtureException('the server went away'),
                 static fn(): Result => $releaseResult,
             );
 
@@ -786,7 +773,7 @@ final class MysqlLockServiceTest extends TestCase
             ->times(2)
             ->andReturnUsing(
                 static fn(): Result => $acquireResult,
-                static fn(): Result => throw new RuntimeException('the server went away'),
+                static fn(): Result => throw new FixtureException('the server went away'),
             );
 
         $this->mysqlLockService->acquire('test_lock');
@@ -821,6 +808,49 @@ final class MysqlLockServiceTest extends TestCase
             ["SELECT GET_LOCK('alpha', 0) AS lockAcquired", "SELECT GET_LOCK('zulu', 0) AS lockAcquired"],
             $executedQueries,
             'a stable order is what keeps two callers from deadlocking against each other',
+        );
+    }
+
+    public function testANegativeTimeoutIsRejectedBeforeAnyQuery(): void
+    {
+        /* GET_LOCK(name, -1) waits forever on mysql and mariadb; the postgresql service already refuses it, one contract must */
+        $this->connection->shouldNotReceive('executeQuery');
+
+        $this->expectException(MysqlLockException::class);
+        $this->expectExceptionMessage('lock timeout must not be negative');
+
+        $this->mysqlLockService->acquire('test_lock', -1);
+    }
+
+    public function testAcquireLocksSortsTheNamesAsStrings(): void
+    {
+        $executedQueries = [];
+
+        $this->connection->shouldReceive('quote')
+            ->andReturnUsing(static fn(string $lockName): string => "'" . $lockName . "'");
+        $this->connection->shouldReceive('executeQuery')
+            ->times(4)
+            ->andReturnUsing(function (string $query) use (&$executedQueries) {
+                $executedQueries[] = $query;
+
+                $result = Mockery::mock(Result::class);
+                $result->shouldReceive('fetchAssociative')
+                    ->andReturn(['lockAcquired' => 1]);
+
+                return $result;
+            });
+
+        $this->mysqlLockService->acquireLocks(['b', '10', '9', 'a']);
+
+        /* the default comparison reads `10` and `9` as numbers and a mix of numeric and plain names is not a total order, so two callers could still sort the same names differently */
+        static::assertSame(
+            [
+                "SELECT GET_LOCK('10', 0) AS lockAcquired",
+                "SELECT GET_LOCK('9', 0) AS lockAcquired",
+                "SELECT GET_LOCK('a', 0) AS lockAcquired",
+                "SELECT GET_LOCK('b', 0) AS lockAcquired",
+            ],
+            $executedQueries,
         );
     }
 
@@ -869,7 +899,7 @@ final class MysqlLockServiceTest extends TestCase
             ->andReturn("'test_lock'");
         $this->connection->shouldReceive('executeQuery')
             ->once()
-            ->andThrow(new RuntimeException('the server went away'));
+            ->andThrow(new FixtureException('the server went away'));
 
         $this->expectException(MysqlLockException::class);
         $this->expectExceptionMessage('failed acquiring lock `test_lock`: `the server went away`');
@@ -970,6 +1000,19 @@ final class MysqlLockServiceTest extends TestCase
             $reflectionMethod->invoke($this->mysqlLockService, 'alpha', null),
             $reflectionMethod->invoke($this->mysqlLockService, 'alpha', 'default'),
         );
+    }
+
+    protected function setUp(): void
+    {
+        $this->connection = Mockery::mock(Connection::class);
+        $this->entityManager = Mockery::mock(EntityManager::class);
+        $this->entityManager->shouldReceive('getConnection')
+            ->andReturn($this->connection);
+        $this->managerRegistry = Mockery::mock(ManagerRegistry::class);
+        $this->managerRegistry->shouldReceive('getManager')
+            ->byDefault()
+            ->andReturn($this->entityManager);
+        $this->mysqlLockService = new MysqlLockService($this->managerRegistry);
     }
 
     /** @return array<string, array{count: int, lockName: string, entityManagerName: ?string}> */

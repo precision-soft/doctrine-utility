@@ -53,23 +53,15 @@ final class ArrayFilterFunctionalTest extends TestCase
     private const ULID_BETA = '01BX5ZZKBKACTAV9WEVGEMMVRZ';
     private const ULID_GAMMA = '01C0N5ZQ8Z9V6M4S3T2R1P0KJH';
 
+    /* first bytes 0x01..0x03: below every hexadecimal character, so a boundary bound as text instead of binary would compare above all three */
+    private const IDENTITY_ALPHA = '01111111-1111-4111-8111-111111111111';
+    private const IDENTITY_BETA = '02222222-2222-4222-8222-222222222222';
+    private const IDENTITY_GAMMA = '03333333-3333-4333-8333-333333333333';
+
     private ?EntityManagerInterface $entityManager = null;
 
     /** @var array<string, int> */
     private array $identifiers = [];
-
-    protected function tearDown(): void
-    {
-        if (null !== $this->entityManager) {
-            IntegrationDatabase::dropSchema($this->entityManager);
-            $this->entityManager->getConnection()->close();
-            $this->entityManager = null;
-        }
-
-        $this->identifiers = [];
-
-        parent::tearDown();
-    }
 
     #[DataProviderExternal(IntegrationDatabase::class, 'dataProviderEngine')]
     public function testBinaryUuidArrayFilterMatchesRows(string $environmentVariable): void
@@ -360,6 +352,170 @@ final class ArrayFilterFunctionalTest extends TestCase
         ));
     }
 
+    #[DataProviderExternal(IntegrationDatabase::class, 'dataProviderPortableEngine')]
+    public function testTypedCriteriaRejectsANullScalarValue(string $environmentVariable): void
+    {
+        $repository = $this->boot($environmentVariable);
+
+        /* `gamma` carries no enum: the array API finds it through `IS NULL`, and `= NULL` would find nothing at all */
+        static::assertSame(
+            [$this->identifiers['gamma']],
+            $repository->findIdsByFilters(['stringBackedEnum' => null]),
+        );
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('criteria operator `=` does not accept null; use `IS NULL` or `IS NOT NULL`');
+
+        $repository->findIdsByCriteria(new Criteria(
+            filters: [new Filter('stringBackedEnum', Operator::Equal, null)],
+        ));
+    }
+
+    #[DataProviderExternal(IntegrationDatabase::class, 'dataProviderPortableEngine')]
+    public function testTypedCriteriaRejectsANullInsideAList(string $environmentVariable): void
+    {
+        $repository = $this->boot($environmentVariable);
+
+        /* `NOT IN (..., NULL)` is unknown for every row, so the list would exclude everything without a word */
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('criteria operator `NOT IN` does not accept null inside its list; use `IS NULL` or `IS NOT NULL`');
+
+        $repository->findIdsByCriteria(new Criteria(
+            filters: [new Filter('stringBackedEnum', Operator::NotIn, [StringBackedEnum::Alpha, null])],
+            sorts: [new Sort('id', Direction::Ascending)],
+        ));
+    }
+
+    #[DataProviderExternal(IntegrationDatabase::class, 'dataProviderPortableEngine')]
+    public function testTypedCriteriaWalksAKeysetToExhaustion(string $environmentVariable): void
+    {
+        $repository = $this->boot($environmentVariable);
+        $sorts = [new Sort('label', Direction::Ascending), new Sort('id', Direction::Ascending)];
+        $keysetValues = [
+            $this->identifiers['alpha'] => 'alpha',
+            $this->identifiers['beta'] => 'beta',
+            $this->identifiers['gamma'] => 'gamma',
+        ];
+
+        static::assertSame(
+            [[$this->identifiers['alpha']], [$this->identifiers['beta']], [$this->identifiers['gamma']], []],
+            $this->walk($repository, $sorts, 'label', $keysetValues),
+        );
+    }
+
+    #[DataProviderExternal(IntegrationDatabase::class, 'dataProviderPortableEngine')]
+    public function testTypedCriteriaKeysetRejectsANullableSortField(string $environmentVariable): void
+    {
+        $repository = $this->boot($environmentVariable);
+        $sorts = [new Sort('intBackedEnum', Direction::Ascending), new Sort('id', Direction::Ascending)];
+        $keysetValues = [
+            $this->identifiers['alpha'] => IntBackedEnum::First,
+            $this->identifiers['beta'] => IntBackedEnum::Second,
+            $this->identifiers['gamma'] => null,
+        ];
+
+        /* measured before the guard: postgresql (null last) returned two of the three rows, mysql and mariadb (null first) threw on the null keyset value of the next page */
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('keyset sort field `intBackedEnum` is nullable; a row holding null is never reached by a keyset comparison');
+
+        $this->walk($repository, $sorts, 'intBackedEnum', $keysetValues);
+    }
+
+    #[DataProviderExternal(IntegrationDatabase::class, 'dataProviderPortableEngine')]
+    public function testTypedCriteriaConvertsAScalarValueByTheColumnType(string $environmentVariable): void
+    {
+        $repository = $this->boot($environmentVariable);
+
+        static::assertSame(
+            [$this->identifiers['alpha']],
+            $repository->findIdsByCriteria(new Criteria(
+                filters: [new Filter('uuid', Operator::Equal, Uuid::fromString(static::UUID_ALPHA))],
+            )),
+        );
+        static::assertSame(
+            [$this->identifiers['beta']],
+            $repository->findIdsByCriteria(new Criteria(
+                filters: [new Filter('ulid', Operator::Equal, new Ulid(static::ULID_BETA))],
+            )),
+        );
+        static::assertSame(
+            [$this->identifiers['gamma']],
+            $repository->findIdsByCriteria(new Criteria(
+                filters: [new Filter('binaryUuid', Operator::Equal, static::BINARY_UUID_GAMMA)],
+            )),
+        );
+        static::assertSame(
+            [$this->identifiers['beta'], $this->identifiers['gamma']],
+            $repository->findIdsByCriteria(new Criteria(
+                filters: [new Filter('identity', Operator::GreaterThan, Uuid::fromString(static::IDENTITY_ALPHA))],
+                sorts: [new Sort('id', Direction::Ascending)],
+            )),
+        );
+    }
+
+    #[DataProviderExternal(IntegrationDatabase::class, 'dataProviderPortableEngine')]
+    public function testArrayFilterConvertsAScalarValueByTheColumnType(string $environmentVariable): void
+    {
+        $repository = $this->boot($environmentVariable);
+
+        static::assertSame([$this->identifiers['alpha']], $repository->findIdsByFilters(['uuid' => Uuid::fromString(static::UUID_ALPHA)]));
+        static::assertSame([$this->identifiers['beta']], $repository->findIdsByFilters(['ulid' => new Ulid(static::ULID_BETA)]));
+        static::assertSame([$this->identifiers['gamma']], $repository->findIdsByFilters(['binaryUuid' => static::BINARY_UUID_GAMMA]));
+        static::assertSame([$this->identifiers['alpha']], $repository->findIdsByFilters(['dateValue' => new DateTimeImmutable('2026-01-01')]));
+    }
+
+    #[DataProviderExternal(IntegrationDatabase::class, 'dataProviderPortableEngine')]
+    public function testTypedCriteriaConvertsAKeysetValueByTheColumnType(string $environmentVariable): void
+    {
+        $repository = $this->boot($environmentVariable);
+
+        static::assertSame(
+            [$this->identifiers['beta'], $this->identifiers['gamma']],
+            $repository->findIdsByCriteria(new Criteria(
+                sorts: [new Sort('identity', Direction::Ascending)],
+                keyset: new Keyset(['identity' => Uuid::fromString(static::IDENTITY_ALPHA)]),
+            )),
+        );
+    }
+
+    protected function tearDown(): void
+    {
+        if (null !== $this->entityManager) {
+            IntegrationDatabase::dropSchema($this->entityManager);
+            $this->entityManager->getConnection()->close();
+            $this->entityManager = null;
+        }
+
+        $this->identifiers = [];
+
+        parent::tearDown();
+    }
+
+    /**
+     * Pages of one row until an empty page, the keyset of every page taken from the row it returned.
+     *
+     * @param list<Sort> $sorts
+     * @param array<int, mixed> $keysetValues the sort value of every row, by identifier
+     *
+     * @return list<list<int>>
+     */
+    private function walk(FilterSubjectRepository $repository, array $sorts, string $sortField, array $keysetValues): array
+    {
+        $pages = [];
+        $keyset = null;
+
+        do {
+            $page = $repository->findIdsByCriteria(new Criteria(sorts: $sorts, keyset: $keyset, limit: 1));
+            $pages[] = $page;
+
+            if ([] !== $page) {
+                $keyset = new Keyset([$sortField => $keysetValues[$page[0]], 'id' => $page[0]]);
+            }
+        } while ([] !== $page && \count($pages) < 5);
+
+        return $pages;
+    }
+
     private function boot(string $environmentVariable): FilterSubjectRepository
     {
         IntegrationDatabase::registerTypes();
@@ -384,6 +540,7 @@ final class ArrayFilterFunctionalTest extends TestCase
     {
         $alpha = (new FilterSubject())
             ->setLabel('alpha')
+            ->setIdentity(Uuid::fromString(static::IDENTITY_ALPHA))
             ->setBinaryUuid(static::BINARY_UUID_ALPHA)
             ->setUuid(Uuid::fromString(static::UUID_ALPHA))
             ->setUlid(new Ulid(static::ULID_ALPHA))
@@ -400,6 +557,7 @@ final class ArrayFilterFunctionalTest extends TestCase
 
         $beta = (new FilterSubject())
             ->setLabel('beta')
+            ->setIdentity(Uuid::fromString(static::IDENTITY_BETA))
             ->setBinaryUuid(static::BINARY_UUID_BETA)
             ->setUuid(Uuid::fromString(static::UUID_BETA))
             ->setUlid(new Ulid(static::ULID_BETA))
@@ -416,6 +574,7 @@ final class ArrayFilterFunctionalTest extends TestCase
 
         $gamma = (new FilterSubject())
             ->setLabel('gamma')
+            ->setIdentity(Uuid::fromString(static::IDENTITY_GAMMA))
             ->setBinaryUuid(static::BINARY_UUID_GAMMA)
             ->setUuid(Uuid::fromString(static::UUID_GAMMA))
             ->setUlid(new Ulid(static::ULID_GAMMA))

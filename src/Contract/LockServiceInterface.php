@@ -26,7 +26,13 @@ interface LockServiceInterface
      */
     public function hasLockInCurrentSession(string $lockName, ?string $entityManagerName = null): bool;
 
-    /** @throws LockException if the lock cannot be acquired or times out */
+    /**
+     * Reference counted: a name this service already holds is counted once more without asking the engine.
+     * `$forceRefresh` asks the engine whether this session still owns the lock, re-takes it when it does not,
+     * and adds no reference. A negative `$timeout` is refused.
+     *
+     * @throws LockException if the timeout is negative, or the lock cannot be acquired or times out
+     */
     public function acquire(
         string $lockName,
         int $timeout = 0,

@@ -19,16 +19,11 @@ use stdClass;
  */
 final class CreatedTraitTest extends AbstractTestCase
 {
+    private CreatedTraitUser $entity;
+
     public static function getMockDto(): MockDto
     {
         return new MockDto(stdClass::class);
-    }
-
-    private CreatedTraitUser $entity;
-
-    protected function setUp(): void
-    {
-        $this->entity = new CreatedTraitUser();
     }
 
     public function testGetCreatedDefaultIsNull(): void
@@ -71,5 +66,10 @@ final class CreatedTraitTest extends AbstractTestCase
 
         $this->entity->setCreated(new DateTime());
         static::assertInstanceOf(DateTime::class, $this->entity->getCreated());
+    }
+
+    protected function setUp(): void
+    {
+        $this->entity = new CreatedTraitUser();
     }
 }

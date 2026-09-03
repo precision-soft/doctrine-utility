@@ -19,16 +19,11 @@ use stdClass;
  */
 final class ModifiedTraitTest extends AbstractTestCase
 {
+    private ModifiedTraitUser $entity;
+
     public static function getMockDto(): MockDto
     {
         return new MockDto(stdClass::class);
-    }
-
-    private ModifiedTraitUser $entity;
-
-    protected function setUp(): void
-    {
-        $this->entity = new ModifiedTraitUser();
     }
 
     public function testGetModifiedDefaultIsNull(): void
@@ -100,5 +95,10 @@ final class ModifiedTraitTest extends AbstractTestCase
         $modifiedDateTime = $this->entity->getModified();
         static::assertNotSame($oldDateTime, $modifiedDateTime);
         static::assertInstanceOf(DateTime::class, $modifiedDateTime);
+    }
+
+    protected function setUp(): void
+    {
+        $this->entity = new ModifiedTraitUser();
     }
 }

@@ -11,7 +11,7 @@ namespace PrecisionSoft\Doctrine\Utility\Test\Utility;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\AbstractManagerRegistry;
 use Doctrine\Persistence\Proxy;
-use RuntimeException;
+use PrecisionSoft\Doctrine\Utility\Test\Utility\Exception\FixtureException;
 
 /**
  * Deliberately not a Mockery double: the registry is the boundary this suite exists to cross.
@@ -37,7 +37,7 @@ final class IntegrationManagerRegistry extends AbstractManagerRegistry
         return match ($name) {
             'manager' => $this->entityManager,
             'connection' => $this->entityManager->getConnection(),
-            default => throw new RuntimeException(\sprintf('unknown service `%s`', $name)),
+            default => throw new FixtureException(\sprintf('unknown service `%s`', $name)),
         };
     }
 

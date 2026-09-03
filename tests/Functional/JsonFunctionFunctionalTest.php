@@ -28,19 +28,6 @@ final class JsonFunctionFunctionalTest extends TestCase
     /** @var array<string, int> */
     private array $identifiers = [];
 
-    protected function tearDown(): void
-    {
-        if (null !== $this->entityManager) {
-            IntegrationDatabase::dropSchema($this->entityManager);
-            $this->entityManager->getConnection()->close();
-            $this->entityManager = null;
-        }
-
-        $this->identifiers = [];
-
-        parent::tearDown();
-    }
-
     #[DataProviderExternal(IntegrationDatabase::class, 'dataProviderEngine')]
     public function testJsonContainsMatchesAValueAtAPath(string $environmentVariable): void
     {
@@ -153,6 +140,19 @@ final class JsonFunctionFunctionalTest extends TestCase
             ['2026-01', '2026-02', '2026-03'],
             \array_map(static fn(array $row): string => (string)$row['period'], $rows),
         );
+    }
+
+    protected function tearDown(): void
+    {
+        if (null !== $this->entityManager) {
+            IntegrationDatabase::dropSchema($this->entityManager);
+            $this->entityManager->getConnection()->close();
+            $this->entityManager = null;
+        }
+
+        $this->identifiers = [];
+
+        parent::tearDown();
     }
 
     /** @return array<int, int> */

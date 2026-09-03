@@ -83,7 +83,11 @@ abstract class AbstractLockService implements LockServiceInterface
     }
 
     /**
-     * @throws LockException if the lock cannot be acquired or times out
+     * A lock the bookkeeping already holds is re-taken without a query and counted once more; `$forceRefresh` asks
+     * the engine first, re-takes the lock when this session lost it — a closed connection, a server restart — and
+     * adds no reference either way.
+     *
+     * @throws LockException if the timeout is negative, or the lock cannot be acquired or times out
      */
     public function acquire(
         string $lockName,
@@ -91,6 +95,11 @@ abstract class AbstractLockService implements LockServiceInterface
         ?string $entityManagerName = null,
         bool $forceRefresh = false,
     ): static {
+        /* mysql waits forever on a negative timeout, mariadb answers null and postgresql would compute a deadline in the past; the contract is one */
+        if ($timeout < 0) {
+            throw $this->createException('lock timeout must not be negative');
+        }
+
         $lockKey = $this->buildLockKey($lockName, $entityManagerName);
 
         if (false === $forceRefresh && true === isset($this->locks[$lockKey])) {
@@ -183,7 +192,8 @@ abstract class AbstractLockService implements LockServiceInterface
      */
     public function acquireLocks(array $lockNames, int $timeout = 0, ?string $entityManagerName = null): static
     {
-        \sort($lockNames);
+        /* as strings, or `10` sorts before `9` only next to numbers and two callers could take the same names in different orders */
+        \sort($lockNames, \SORT_STRING);
 
         $acquiredLockNames = [];
 
