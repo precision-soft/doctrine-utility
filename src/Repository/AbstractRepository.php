@@ -130,7 +130,7 @@ abstract class AbstractRepository
         $connection = $this->managerRegistry->getConnection($connectionName);
 
         if (false === ($connection instanceof Connection)) {
-            throw new Exception('connection is not an instance of Connection');
+            throw new Exception('connection is not an instance of `Connection`');
         }
 
         return $connection;
@@ -166,7 +166,7 @@ abstract class AbstractRepository
     }
 
     /**
-     * @throws Exception if a criteria field is not mapped, or the criteria itself is inconsistent
+     * @throws Exception if a criteria field is not mapped, an operator cannot apply to its field, a keyset sorts on a nullable field, or the criteria itself is inconsistent
      */
     protected function createQueryBuilderFromCriteria(
         Criteria $criteria,
@@ -180,12 +180,27 @@ abstract class AbstractRepository
                 throw new Exception(\sprintf('criteria field `%s` is not mapped', $filter->field));
             }
 
+            /* DQL compares, lists and sorts an association by its foreign key, but LIKE takes a state field only */
+            if (Operator::Like === $filter->operator && true === $doctrineRepository->hasAssociation($filter->field)) {
+                throw new Exception(
+                    \sprintf('criteria operator `LIKE` cannot apply to the association `%s`', $filter->field),
+                );
+            }
+
             $this->attachCriteriaFilter($queryBuilder, $filter, 'criteria_' . $index);
         }
 
         foreach ($criteria->sorts as $sort) {
             if (false === $doctrineRepository->hasField($sort->field)) {
                 throw new Exception(\sprintf('sort field `%s` is not mapped', $sort->field));
+            }
+
+            /* a keyset comparison is never true for null, so a row holding one is skipped or repeated between pages, and where the engines place null differs */
+            if (null !== $criteria->keyset && true === $doctrineRepository->allowsNull($sort->field)) {
+                throw new Exception(\sprintf(
+                    'keyset sort field `%s` is nullable; a row holding null is never reached by a keyset comparison',
+                    $sort->field,
+                ));
             }
 
             $queryBuilder->addOrderBy(static::getAlias() . '.' . $sort->field, $sort->direction->value);
@@ -207,7 +222,10 @@ abstract class AbstractRepository
     }
 
     /**
-     * @throws Exception if the operator needs an array value and did not get one, or the empty array behavior throws
+     * A `null` value is refused on every operator that binds it: `= NULL` and `IN (..., NULL)` are unknown, never
+     * true, and would match nothing without a word, where `IsNull`/`IsNotNull` say what is meant.
+     *
+     * @throws Exception if the operator needs an array value and did not get one, the value is or contains null, or the empty array behavior throws
      */
     protected function attachCriteriaFilter(
         QueryBuilder $queryBuilder,
@@ -229,8 +247,17 @@ abstract class AbstractRepository
                 );
             }
 
+            if (null === $filter->value) {
+                throw new Exception(\sprintf(
+                    'criteria operator `%s` does not accept null; use `IS NULL` or `IS NOT NULL`',
+                    $filter->operator->value,
+                ));
+            }
+
+            [$databaseValue, $parameterType] = $this->convertScalarFilterValue($filter->field, $filter->value);
+
             $queryBuilder->andWhere(\sprintf('%s %s :%s', $field, $filter->operator->value, $parameterName))
-                ->setParameter($parameterName, $filter->value);
+                ->setParameter($parameterName, $databaseValue, $parameterType);
 
             return;
         }
@@ -245,6 +272,13 @@ abstract class AbstractRepository
             $this->handleEmptyCriteriaArrayFilter($queryBuilder, $filter);
 
             return;
+        }
+
+        if (true === \in_array(null, $filter->value, true)) {
+            throw new Exception(\sprintf(
+                'criteria operator `%s` does not accept null inside its list; use `IS NULL` or `IS NOT NULL`',
+                $filter->operator->value,
+            ));
         }
 
         [$databaseValues, $parameterType] = $this->convertArrayFilterValues($filter->field, $filter->value);
@@ -312,7 +346,12 @@ abstract class AbstractRepository
                 ? $tail
                 : '(' . \implode(' AND ', $equalities) . ' AND ' . $tail . ')';
 
-            $queryBuilder->setParameter('keyset_' . $index, $criteria->keyset->values[$sort->field]);
+            [$databaseValue, $parameterType] = $this->convertScalarFilterValue(
+                $sort->field,
+                $criteria->keyset->values[$sort->field],
+            );
+
+            $queryBuilder->setParameter('keyset_' . $index, $databaseValue, $parameterType);
         }
 
         $queryBuilder->andWhere('(' . \implode(' OR ', $conditions) . ')');
@@ -464,8 +503,10 @@ abstract class AbstractRepository
                 continue;
             }
 
+            [$databaseValue, $parameterType] = $this->convertScalarFilterValue($filterName, $filterValue);
+
             $queryBuilder->andWhere(static::getAlias() . ".{$filterName} = :{$filterName}")
-                ->setParameter($filterName, $filterValue);
+                ->setParameter($filterName, $databaseValue, $parameterType);
         }
     }
 
@@ -485,6 +526,33 @@ abstract class AbstractRepository
     }
 
     /**
+     * A single value goes through the list pipeline as a list of one, so a uid, a binary or a date compared with
+     * `=`, `<` or a keyset is bound exactly as it would be inside an `IN`; null stays null, a type the pipeline does
+     * not know is bound untyped, for the ORM to infer.
+     *
+     * @return array{0: mixed, 1: ParameterType|null}
+     */
+    protected function convertScalarFilterValue(string $filterName, mixed $filterValue): array
+    {
+        if (null === $filterValue) {
+            return [null, null];
+        }
+
+        [$databaseValues, $arrayParameterType] = $this->convertArrayFilterValues($filterName, [$filterValue]);
+
+        return [
+            \reset($databaseValues),
+            match ($arrayParameterType) {
+                ArrayParameterType::BINARY => ParameterType::BINARY,
+                ArrayParameterType::STRING => ParameterType::STRING,
+                ArrayParameterType::INTEGER => ParameterType::INTEGER,
+                ArrayParameterType::ASCII => ParameterType::ASCII,
+                null => null,
+            },
+        ];
+    }
+
+    /**
      * The single conversion pipeline behind every `IN` list, whichever filter API built it.
      *
      * @param non-empty-array<array-key, mixed> $filterValue
@@ -493,6 +561,11 @@ abstract class AbstractRepository
      */
     protected function convertArrayFilterValues(string $filterName, array $filterValue): array
     {
+        /* a repository whose registry was never set has no mapping to ask — a test double built on a partial mock — so it binds untyped, as it always did */
+        if (false === isset($this->managerRegistry)) {
+            return [$filterValue, null];
+        }
+
         $manager = $this->managerRegistry->getManagerForClass($this->getEntityClass());
 
         if (false === ($manager instanceof EntityManagerInterface)) {
@@ -563,17 +636,17 @@ abstract class AbstractRepository
 
     protected function isDateTimeArrayColumn(Type $doctrineType): bool
     {
-        return $doctrineType instanceof PhpDateMappingType
-            || $doctrineType instanceof PhpDateTimeMappingType
-            || $doctrineType instanceof PhpTimeMappingType
-            || $doctrineType instanceof DateIntervalType;
+        return true === $doctrineType instanceof PhpDateMappingType
+            || true === $doctrineType instanceof PhpDateTimeMappingType
+            || true === $doctrineType instanceof PhpTimeMappingType
+            || true === $doctrineType instanceof DateIntervalType;
     }
 
     protected function isUidArrayColumn(Type $doctrineType): bool
     {
         /* symfony/doctrine-bridge is not a runtime dependency; the guard only makes explicit what instanceof already does without it */
         return true === \class_exists(AbstractUidType::class)
-            && $doctrineType instanceof AbstractUidType;
+            && true === $doctrineType instanceof AbstractUidType;
     }
 
     /**

@@ -23,22 +23,6 @@ class PostgresqlLockService extends AbstractLockService
     protected const SIGNED_INT32_MAXIMUM = 0x7FFFFFFF;
     protected const UNSIGNED_INT32_RANGE = 0x100000000;
 
-    /**
-     * @throws PostgresqlLockException if the timeout is negative, or the lock cannot be acquired
-     */
-    public function acquire(
-        string $lockName,
-        int $timeout = 0,
-        ?string $entityManagerName = null,
-        bool $forceRefresh = false,
-    ): static {
-        if ($timeout < 0) {
-            throw $this->createException('lock timeout must not be negative');
-        }
-
-        return parent::acquire($lockName, $timeout, $entityManagerName, $forceRefresh);
-    }
-
     protected function acquireLock(string $lockName, int $timeout, EntityManager $entityManager): bool
     {
         $connection = $entityManager->getConnection();

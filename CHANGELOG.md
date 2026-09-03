@@ -6,6 +6,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [v4.4.0] - 2026-09-03 - Single uid values bound through the column type, keyset and null guards, one lock timeout contract, and the example application
+
+### Added
+
+- `DoctrineRepository::hasAssociation()` and `DoctrineRepository::allowsNull()` expose what the criteria validation now asks of the mapping: whether a mapped name is an association, and whether the column behind it may hold null — a field by its mapping, an owning side to-one association by its join columns
+- `AbstractRepository::convertScalarFilterValue()` is the `protected` hook behind every single value bound by either filter API; a subclass that narrows the list conversion rules through `convertArrayFilterValues()` narrows the scalar ones with it
+- `.example/`, a runnable product catalogue whose test suite exercises every public capability of the package on the real engines: the two filter APIs on a repository with custom filters and a join, keyset paging, the DQL functions, the index hints read back from `EXPLAIN`, and the lock services serialising two sessions. It installs the package from the working tree through a path repository and is gated by `.dev/validate/all.sh --example` and the `example` CI job, which now carries the three database services; the directory is `export-ignore`d, so nothing reaches a consumer's `vendor/`
+
+### Fixed
+
+- A `Uuid`, a `Ulid` or a binary uuid compared as a **single value matched nothing on MySQL and MariaDB, in both filter APIs** — `['uuid' => $uuid]`, `new Filter('uuid', Operator::Equal, $uuid)` and a keyset boundary alike. v4.1.8, v4.1.11 and v4.1.12 routed `IN` lists through the column's Doctrine type but a scalar still reached the driver as the object's string form, which a `BINARY(16)` column never equals; on PostgreSQL a `Ulid` failed with *invalid input syntax for type uuid*. Every single value now goes through the same conversion pipeline as a list of one, so a uid, a binary and a date bind exactly as they do inside an `IN`. Measured on the three engines before the fix: the uid and binary equalities returned an empty result, the date ones already worked because the ORM infers a `DateTime` on its own. A repository whose manager registry was never set — a test double built on a partial mock, as consumers write them — has no mapping to ask and keeps binding untyped, so such tests
+  need no change
+- Keyset pagination refused to sort on a nullable column. A keyset comparison is never true for `NULL`, so a row holding one was skipped or repeated between pages — and differently per engine: PostgreSQL places nulls last on an ascending sort and silently returned two of three rows, MySQL and MariaDB place them first and threw on the null keyset value of the next page. A `Sort` on a field whose mapping says `nullable: true` — or on a to-one association whose join column may be null — is now rejected the moment a `Keyset` is present; without a keyset the sort stays allowed
+- `new Filter('x', Operator::Equal, null)` bound `x = NULL`, which is unknown for every row and matched nothing without a word, while the array filter API maps `null` to `IS NULL`; a `null` inside an `IN` or `NOT IN` list did the same, and `NOT IN (..., NULL)` excluded every row. Both are rejected now with a message pointing at `Operator::IsNull` / `Operator::IsNotNull`; `Filter::$value` still defaults to `null`, so a filter built without a value fails the same way instead of binding it
+- `Operator::Like` on an owning side association built a DQL that failed only at execution with Doctrine's *Invalid PathExpression. Must be a StateFieldPathExpression*; it is refused up front, with the association named. Every other operator, a sort and a keyset keep working on an association, through its foreign key, as DQL allows
+- `MysqlLockService::acquire()` accepted a negative timeout: MySQL 8.4 waits forever on `GET_LOCK(name, -1)` and MariaDB 11.8 answers `NULL`, which surfaced as an invalid response. The guard `PostgresqlLockService` already had moved into `AbstractLockService`, so both implementations of `LockServiceInterface` refuse it before any query
+- `acquireLocks()` sorted the names with PHP's default comparison, which reads `10` and `9` as numbers, so a mix of numeric and plain names was not a total order and two callers could take the same names in different orders; the sort is `SORT_STRING` now
+
+### Changed
+
+- `infection.json5` raises `minMsi` and `minCoveredMsi` from 84 to 85, the score the suite now measures rounded down
+- `forceRefresh` is documented on `LockServiceInterface::acquire()` and in the README: it asks the engine whether this session still owns the lock, re-takes it when it does not, and adds no reference. The fast path of `acquire()` never asks the engine, so after a closed connection the reference count keeps saying held while the new session holds nothing — the functional suite pins that on the three engines, and `forceRefresh` is the way back
+
 ## [v4.3.1] - 2026-09-01 - PostgreSQL advisory locks, a shared lock contract, and typed repository criteria
 
 Supersedes v4.3.0, which was withdrawn. Its tag was briefly pushed onto the v4.2.0 commit, Packagist indexed it there, and version immutability then blocked the corrected reference — so the published v4.3.0 would have served v4.2.0's code. The tag and the release were removed and the version soft-deleted on Packagist. This release carries identical code.
@@ -529,7 +552,9 @@ Supersedes v4.3.0, which was withdrawn. Its tag was briefly pushed onto the v4.2
 - `MySqlWalker` — custom SQL walker adding `USE INDEX` / `IGNORE INDEX` / `FORCE INDEX` / `FOR UPDATE` hints
 - Dev infrastructure: Docker container, git hooks (pre-commit with php-cs-fixer + lint + PHPUnit), PHP-CS-Fixer configuration, PHPUnit 9 test scaffolding
 
-[Unreleased]: https://github.com/precision-soft/doctrine-utility/compare/v4.3.1...HEAD
+[Unreleased]: https://github.com/precision-soft/doctrine-utility/compare/v4.4.0...HEAD
+
+[v4.4.0]: https://github.com/precision-soft/doctrine-utility/compare/v4.3.1...v4.4.0
 
 [v4.3.1]: https://github.com/precision-soft/doctrine-utility/compare/v4.2.0...v4.3.1
 

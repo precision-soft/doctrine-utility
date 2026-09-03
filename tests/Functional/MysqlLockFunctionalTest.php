@@ -29,17 +29,6 @@ final class MysqlLockFunctionalTest extends TestCase
     /** @var array<int, Connection> */
     private array $connections = [];
 
-    protected function tearDown(): void
-    {
-        foreach ($this->connections as $connection) {
-            $connection->close();
-        }
-
-        $this->connections = [];
-
-        parent::tearDown();
-    }
-
     #[DataProviderExternal(IntegrationDatabase::class, 'dataProviderEngine')]
     public function testAcquireHoldsTheLockOnTheServerAndReleaseFreesIt(string $environmentVariable): void
     {
@@ -223,11 +212,85 @@ final class MysqlLockFunctionalTest extends TestCase
         static::assertFalse($holder->hasLockInCurrentSession($lockName));
     }
 
+    #[DataProviderExternal(IntegrationDatabase::class, 'dataProviderEngine')]
+    public function testANegativeTimeoutIsRefusedBeforeAnyQuery(string $environmentVariable): void
+    {
+        $lockService = $this->createLockService($environmentVariable);
+        $observer = $this->createConnection($environmentVariable);
+        $lockName = 'integration-lock-negative-timeout';
+
+        /* measured on the servers: mysql 8.4 waits forever on GET_LOCK(name, -1), mariadb 11.8 answers null */
+        try {
+            $lockService->acquire($lockName, -1);
+            static::fail('a negative timeout must be refused');
+        } catch (MysqlLockException $mysqlLockException) {
+            static::assertSame('lock timeout must not be negative', $mysqlLockException->getMessage());
+        }
+
+        static::assertTrue($this->isFreeLock($observer, $lockName));
+    }
+
+    #[DataProviderExternal(IntegrationDatabase::class, 'dataProviderEngine')]
+    public function testABookkeptLockOutlivesAClosedConnection(string $environmentVariable): void
+    {
+        $connection = $this->createConnection($environmentVariable);
+        $lockService = $this->createLockServiceOn($connection);
+        $observer = $this->createConnection($environmentVariable);
+        $lockName = 'integration-lock-closed-connection';
+
+        $lockService->acquire($lockName);
+        $connection->close();
+
+        /* the fast path asks nobody: the reference count says held, the server holds nothing for the new session */
+        $lockService->acquire($lockName);
+        static::assertFalse($lockService->hasLockInCurrentSession($lockName));
+        static::assertTrue($this->isFreeLock($observer, $lockName));
+
+        $lockService->acquire($lockName, forceRefresh: true);
+        static::assertTrue($lockService->hasLockInCurrentSession($lockName));
+
+        $lockService->releaseLocks(null, throwException: true);
+        static::assertTrue($this->isFreeLock($observer, $lockName));
+    }
+
+    #[DataProviderExternal(IntegrationDatabase::class, 'dataProviderEngine')]
+    public function testAClosedSessionReleasesItsLockOnTheServer(string $environmentVariable): void
+    {
+        $connection = $this->createConnection($environmentVariable);
+        $lockService = $this->createLockServiceOn($connection);
+        $observer = $this->createConnection($environmentVariable);
+        $lockName = 'integration-lock-closed-session';
+
+        $lockService->acquire($lockName);
+        static::assertFalse($this->isFreeLock($observer, $lockName));
+
+        $connection->close();
+
+        static::assertTrue(
+            $this->isFreeAfterTheDisconnectSettles($observer, $lockName),
+            'a named lock lives exactly as long as its session',
+        );
+    }
+
+    protected function tearDown(): void
+    {
+        foreach ($this->connections as $connection) {
+            $connection->close();
+        }
+
+        $this->connections = [];
+
+        parent::tearDown();
+    }
+
     private function createLockService(string $environmentVariable): MysqlLockService
     {
-        $entityManager = IntegrationDatabase::createEntityManager($this->createConnection($environmentVariable));
+        return $this->createLockServiceOn($this->createConnection($environmentVariable));
+    }
 
-        return new MysqlLockService(new IntegrationManagerRegistry($entityManager));
+    private function createLockServiceOn(Connection $connection): MysqlLockService
+    {
+        return new MysqlLockService(new IntegrationManagerRegistry(IntegrationDatabase::createEntityManager($connection)));
     }
 
     private function createConnection(string $environmentVariable): Connection
@@ -241,6 +304,26 @@ final class MysqlLockFunctionalTest extends TestCase
         $this->connections[] = $connection;
 
         return $connection;
+    }
+
+    /**
+     * mysql 8.4 tears the session down a moment after the disconnect, so an observer may still see the lock.
+     */
+    private function isFreeAfterTheDisconnectSettles(Connection $observer, string $lockName): bool
+    {
+        $deadline = \microtime(true) + 5;
+
+        do {
+            $isFree = $this->isFreeLock($observer, $lockName);
+
+            if (true === $isFree) {
+                return true;
+            }
+
+            \usleep(50_000);
+        } while (\microtime(true) < $deadline);
+
+        return $isFree;
     }
 
     private function isFreeLock(Connection $connection, string $lockName): bool

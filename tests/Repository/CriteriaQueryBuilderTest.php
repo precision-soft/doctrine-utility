@@ -14,6 +14,7 @@ use Doctrine\ORM\QueryBuilder;
 use Mockery;
 use Mockery\Adapter\Phpunit\MockeryPHPUnitIntegration;
 use PHPUnit\Framework\TestCase;
+use PrecisionSoft\Doctrine\Utility\Exception\Exception;
 use PrecisionSoft\Doctrine\Utility\Repository\Criteria\Criteria;
 use PrecisionSoft\Doctrine\Utility\Repository\Criteria\Direction;
 use PrecisionSoft\Doctrine\Utility\Repository\Criteria\Filter;
@@ -156,7 +157,86 @@ final class CriteriaQueryBuilderTest extends TestCase
         static::assertSame(1, $this->build(new Criteria(limit: 1))->getMaxResults());
     }
 
-    private function build(Criteria $criteria): QueryBuilder
+    public function testANullValueWithAComparisonOperatorIsRejected(): void
+    {
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('criteria operator `=` does not accept null; use `IS NULL` or `IS NOT NULL`');
+
+        $this->build(new Criteria(filters: [new Filter('deletedAt', Operator::Equal, null)]));
+    }
+
+    public function testAFilterWithoutAValueIsRejectedBeforeItBindsNull(): void
+    {
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('criteria operator `<>` does not accept null; use `IS NULL` or `IS NOT NULL`');
+
+        $this->build(new Criteria(filters: [new Filter('deletedAt', Operator::NotEqual)]));
+    }
+
+    public function testANullInsideAListOperatorIsRejected(): void
+    {
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('criteria operator `NOT IN` does not accept null inside its list; use `IS NULL` or `IS NOT NULL`');
+
+        $this->build(new Criteria(filters: [new Filter('id', Operator::NotIn, [1, null])]));
+    }
+
+    public function testANullableSortFieldIsAcceptedWithoutAKeyset(): void
+    {
+        $queryBuilder = $this->build(new Criteria(sorts: [new Sort('deletedAt')]), nullableFields: ['deletedAt']);
+
+        static::assertSame(
+            static::DQL_PREFIX . 'ORDER BY criteriaSubjectRepository.deletedAt ASC',
+            $queryBuilder->getDQL(),
+        );
+    }
+
+    public function testANullableSortFieldIsRejectedUnderAKeyset(): void
+    {
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('keyset sort field `deletedAt` is nullable; a row holding null is never reached by a keyset comparison');
+
+        $this->build(
+            new Criteria(sorts: [new Sort('deletedAt'), new Sort('id')], keyset: new Keyset(['deletedAt' => 1, 'id' => 1])),
+            nullableFields: ['deletedAt'],
+        );
+    }
+
+    public function testAnAssociationTakesEveryOperatorButLike(): void
+    {
+        $queryBuilder = $this->build(new Criteria(
+            filters: [
+                new Filter('owner', Operator::Equal, 7),
+                new Filter('owner', Operator::GreaterThan, 7),
+                new Filter('owner', Operator::In, [7, 8]),
+                new Filter('owner', Operator::IsNull),
+            ],
+            sorts: [new Sort('owner')],
+        ), associations: ['owner']);
+
+        static::assertSame(
+            static::DQL_PREFIX . 'WHERE criteriaSubjectRepository.owner = :criteria_0'
+            . ' AND criteriaSubjectRepository.owner > :criteria_1'
+            . ' AND criteriaSubjectRepository.owner IN (:criteria_2)'
+            . ' AND criteriaSubjectRepository.owner IS NULL'
+            . ' ORDER BY criteriaSubjectRepository.owner ASC',
+            $queryBuilder->getDQL(),
+        );
+    }
+
+    public function testALikeOnAnAssociationIsRejected(): void
+    {
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('criteria operator `LIKE` cannot apply to the association `owner`');
+
+        $this->build(new Criteria(filters: [new Filter('owner', Operator::Like, '%x%')]), associations: ['owner']);
+    }
+
+    /**
+     * @param list<string> $nullableFields
+     * @param list<string> $associations
+     */
+    private function build(Criteria $criteria, array $nullableFields = [], array $associations = []): QueryBuilder
     {
         $entityManagerMock = Mockery::mock(EntityManagerInterface::class);
         $entityManagerMock->shouldReceive('getExpressionBuilder')
@@ -168,6 +248,10 @@ final class CriteriaQueryBuilderTest extends TestCase
         $doctrineRepositoryMock = Mockery::mock(DoctrineRepository::class);
         $doctrineRepositoryMock->shouldReceive('hasField')
             ->andReturnTrue();
+        $doctrineRepositoryMock->shouldReceive('allowsNull')
+            ->andReturnUsing(static fn(string $fieldName): bool => true === \in_array($fieldName, $nullableFields, true));
+        $doctrineRepositoryMock->shouldReceive('hasAssociation')
+            ->andReturnUsing(static fn(string $fieldName): bool => true === \in_array($fieldName, $associations, true));
 
         return (new CriteriaSubjectRepository($queryBuilder, $doctrineRepositoryMock))->build($criteria);
     }

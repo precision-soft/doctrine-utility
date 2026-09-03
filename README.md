@@ -142,6 +142,8 @@ class ProductRepository extends AbstractRepository
 }
 ```
 
+Values bind through the column's Doctrine type, single or in a list: `['uuid' => $uuid]`, `['uuid' => [$first, $second]]` and `['createdAt' => new DateTimeImmutable('2026-01-01')]` reach the driver converted, so a `Uuid` against a `BINARY(16)` column matches. `null` maps to `IS NULL`.
+
 ### Typed criteria
 
 `createQueryBuilderFromCriteria()` is a typed alternative to the array filter API, for callers that build a query from validated input rather than from a hand-written array. Every field is checked against the mapping, so an unmapped name fails loudly instead of reaching DQL.
@@ -169,7 +171,9 @@ $criteria = new Criteria(
 $queryBuilder = $this->createQueryBuilderFromCriteria($criteria);
 ```
 
-[`Operator`](./src/Repository/Criteria/Operator.php) covers `=`, `<>`, `>`, `>=`, `<`, `<=`, `IN`, `NOT IN`, `LIKE`, `IS NULL` and `IS NOT NULL`. `IN` and `NOT IN` bind through the same conversion pipeline as the array filter API, so a `Uuid`, a `DateTime` or a Symfony uid is converted by the column's Doctrine type rather than reaching the driver as a string. An empty `IN` array follows [the empty array filter behavior](#empty-array-filter-behavior) below; an empty `NOT IN` excludes nothing and therefore adds no clause.
+[`Operator`](./src/Repository/Criteria/Operator.php) covers `=`, `<>`, `>`, `>=`, `<`, `<=`, `IN`, `NOT IN`, `LIKE`, `IS NULL` and `IS NOT NULL`. Every value — a single comparison, an `IN` list, a keyset boundary — binds through the same conversion pipeline as the array filter API, so a `Uuid`, a `DateTime` or a Symfony uid is converted by the column's Doctrine type rather than reaching the driver as a string. An empty `IN` array follows [the empty array filter behavior](#empty-array-filter-behavior) below; an empty `NOT IN` excludes nothing and therefore adds no clause.
+
+A `null` value is refused wherever it would be bound: `x = NULL` and `IN (..., NULL)` are unknown for every row and would match nothing without a word, and `NOT IN (..., NULL)` would exclude every row — say `Operator::IsNull` or `Operator::IsNotNull` instead. An owning side association takes every operator but `LIKE`, through its foreign key: `new Filter('category', Operator::In, $categoryIds)` and `new Sort('category')` are DQL, `LIKE` on a path that is not a state field is not, and is refused up front.
 
 #### Keyset pagination
 
@@ -183,7 +187,7 @@ $nextPage = new Criteria(
 );
 ```
 
-Sort on a combination that is unique overall — append the identifier, as above — or rows on a tie will repeat or vanish between pages. A `null` keyset value is rejected: comparing against `NULL` is never true and would silently truncate the page.
+Sort on a combination that is unique overall — append the identifier, as above — or rows on a tie will repeat or vanish between pages. A `null` keyset value is rejected: comparing against `NULL` is never true and would silently truncate the page. For the same reason a keyset refuses to sort on a nullable column — a field mapped `nullable: true`, or a to-one association whose join column may be null: a row holding `NULL` is never reached by the comparison, and where the engines place it differs (PostgreSQL last on an ascending sort, MySQL and MariaDB first), so the same walk lost a row on one engine and threw on the other. DQL has no portable `NULLS FIRST` / `NULLS LAST`; sort on a column that never holds null, or coalesce the value into one. Without a keyset the sort is allowed as it always was.
 
 ### Empty array filter behavior
 
@@ -262,6 +266,8 @@ Available functions:
 
 [`LockServiceInterface`](./src/Contract/LockServiceInterface.php) is the portable named-lock contract, implemented by [`MysqlLockService`](./src/Service/MysqlLockService.php) and [`PostgresqlLockService`](./src/Service/PostgresqlLockService.php) on the shared [`AbstractLockService`](./src/Service/AbstractLockService.php) base. Depend on the interface and let the container decide the engine.
 
+Both refuse a negative `timeout` before any query: MySQL would wait forever on `GET_LOCK(name, -1)`, MariaDB answers `NULL`, and PostgreSQL would compute a deadline in the past.
+
 Two implementations are registered, so autowiring the interface is ambiguous and Symfony will refuse to compile the container. Name the one you want:
 
 ```yaml
@@ -294,6 +300,8 @@ $lockService->releaseLocks();
 
 Lock names longer than 64 characters are automatically hashed to fit MySQL's limit. Locks are reference-counted: calling `acquire()` multiple times with the same name increments a counter, and `release()` decrements it, only actually releasing the MySQL lock when the count reaches zero.
 
+The counted re-acquire never asks the engine. `acquire($name, forceRefresh: true)` does: it asks whether *this* session still owns the lock, re-takes it when it does not, and adds no reference either way — so a `release()` per `acquire()` without `forceRefresh` still balances. Use it when the connection may have been closed or reset while the lock was held: named locks live exactly as long as their session, and after a reconnect the reference count keeps saying held while the new session holds nothing.
+
 All errors throw [`MysqlLockException`](./src/Exception/MysqlLockException.php).
 
 ### PostgresqlLockService
@@ -310,7 +318,7 @@ $lockService->acquire('my-lock', timeout: 5);
 $lockService->release('my-lock');
 ```
 
-PostgreSQL has no blocking `pg_advisory_lock` variant that takes a timeout, so `timeout` is honoured by polling `pg_try_advisory_lock()` until the deadline passes; a negative timeout is rejected rather than silently waiting forever.
+PostgreSQL has no blocking `pg_advisory_lock` variant that takes a timeout, so `timeout` is honoured by polling `pg_try_advisory_lock()` every 100 ms until the deadline passes; whole seconds only, and the wait may overrun by one poll.
 
 The connection must run on a PostgreSQL platform, and all errors throw [`PostgresqlLockException`](./src/Exception/PostgresqlLockException.php). Both exceptions extend [`LockException`](./src/Exception/LockException.php), so a consumer written against the interface can catch one type.
 
@@ -330,7 +338,7 @@ if (true === $lockService->hasLockInCurrentSession('my-lock')) {
 
 `release()` drops its bookkeeping only when the engine answered: either it released the lock, or it reported the lock was never established by this session. When the call itself fails — a dropped connection, an unreachable server — the reference count is kept, so a later `release()` retries against the engine instead of leaving a lock held on the server with nothing tracking it. Pass `throwException: true` to see that failure; the default swallows it.
 
-`releaseLocks()` with no arguments drains every held lock, and stops on the first lock whose release did not reach the engine rather than retrying it in a loop.
+`releaseLocks()` with no arguments drains every held lock — of every entity manager, whatever `$entityManagerName` says — and stops on the first lock whose release did not reach the engine rather than retrying it in a loop; with `throwException: true` that first failure is thrown and the locks after it stay held and bookkept.
 
 ## MySqlWalker (USE/FORCE/IGNORE INDEX)
 
@@ -406,6 +414,10 @@ What this package attaches: `MysqlLockService::releaseLocks()` reports `lockName
 Every exception in the package implements `Contract\ExceptionInterface`, so a consumer can read the context off any of them without knowing the concrete class. A subclass of your own that already declares a `$context` property or a
 `getContext()`/`setContext()` method will collide with `Exception\Trait\ExceptionTrait`.
 
+## Example application
+
+A runnable product catalogue lives under [`.example/`](./.example/README.md): categories, products and currencies as `DoctrineRepository` entities, a `ProductRepository` on `AbstractRepository` with generic, custom and join filters, typed criteria pages walked by keyset, the six DQL functions over a json attributes column, the `MySqlWalker` index hints proved by `EXPLAIN`, and a repricing service that holds a named lock on whichever engine the connection speaks — a second session is refused while the first holds the product — with `CreatedTrait` and `ModifiedTrait` stamping the rows. It runs on MySQL, MariaDB and PostgreSQL, installs the package from the working tree through a path repository, so it always tests the code as it stands; run it with `.dev/validate/all.sh --example` (which starts the databases) or `cd .example && composer install && composer check`. The directory is `export-ignore`d and never reaches a consumer's `vendor/`.
+
 ## Dev
 
 ```shell
@@ -441,6 +453,12 @@ stays fast and offline:
 ```
 
 Tests connect through `DATABASE_URL_MYSQL`, `DATABASE_URL_MARIADB` and `DATABASE_URL_POSTGRESQL` and skip themselves when those services are not running, so `composer check` never depends on them.
+
+The [example application](#example-application) has its own section, which starts the same databases, installs `.example/` from the working tree and runs its `composer check`:
+
+```shell
+.dev/validate/all.sh --example
+```
 
 Build against another PHP version with the `PHP_VERSION` build argument - each version is tagged as its own image, so switching back and forth costs nothing:
 

@@ -35,6 +35,10 @@ class FilterSubject
     #[ORM\Column(type: 'string', length: 64)]
     protected string $label = '';
 
+    /* the one uid column that never holds null, so a keyset may sort on it */
+    #[ORM\Column(type: 'uuid')]
+    protected Uuid $identity;
+
     #[ORM\Column(type: BinaryUuidType::NAME, nullable: true)]
     protected ?string $binaryUuid = null;
 
@@ -75,6 +79,11 @@ class FilterSubject
     #[ORM\Column(type: 'json', nullable: true)]
     protected ?array $payload = null;
 
+    public function __construct()
+    {
+        $this->identity = Uuid::v4();
+    }
+
     public function getId(): ?int
     {
         return $this->id;
@@ -88,6 +97,18 @@ class FilterSubject
     public function setLabel(string $label): static
     {
         $this->label = $label;
+
+        return $this;
+    }
+
+    public function getIdentity(): Uuid
+    {
+        return $this->identity;
+    }
+
+    public function setIdentity(Uuid $identity): static
+    {
+        $this->identity = $identity;
 
         return $this;
     }

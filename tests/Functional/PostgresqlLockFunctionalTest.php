@@ -25,17 +25,6 @@ final class PostgresqlLockFunctionalTest extends TestCase
     /** @var list<Connection> */
     private array $connections = [];
 
-    protected function tearDown(): void
-    {
-        foreach ($this->connections as $connection) {
-            $connection->close();
-        }
-
-        $this->connections = [];
-
-        parent::tearDown();
-    }
-
     public function testAcquireReleaseAndReentrantReferenceCounting(): void
     {
         $service = $this->createService();
@@ -202,6 +191,55 @@ final class PostgresqlLockFunctionalTest extends TestCase
         static::assertFalse($holder->hasLockInCurrentSession('owned'));
     }
 
+    public function testABookkeptLockOutlivesAClosedConnection(): void
+    {
+        $connection = $this->createConnection('DATABASE_URL_POSTGRESQL');
+        $service = $this->createServiceOn($connection);
+        $observer = $this->createService();
+
+        $service->acquire('closed-connection');
+        $connection->close();
+
+        /* the fast path asks nobody: the reference count says held, the server holds nothing for the new backend */
+        $service->acquire('closed-connection');
+        static::assertFalse($service->hasLockInCurrentSession('closed-connection'));
+        static::assertFalse($observer->hasLock('closed-connection'));
+
+        $service->acquire('closed-connection', forceRefresh: true);
+        static::assertTrue($service->hasLockInCurrentSession('closed-connection'));
+
+        $service->releaseLocks(null, throwException: true);
+        static::assertFalse($observer->hasLock('closed-connection'));
+    }
+
+    public function testAClosedSessionReleasesItsAdvisoryLock(): void
+    {
+        $connection = $this->createConnection('DATABASE_URL_POSTGRESQL');
+        $service = $this->createServiceOn($connection);
+        $observer = $this->createService();
+
+        $service->acquire('closed-session');
+        static::assertTrue($observer->hasLock('closed-session'));
+
+        $connection->close();
+
+        static::assertFalse(
+            $this->isHeldAfterTheDisconnectSettles($observer, 'closed-session'),
+            'a session level advisory lock lives exactly as long as its backend',
+        );
+    }
+
+    protected function tearDown(): void
+    {
+        foreach ($this->connections as $connection) {
+            $connection->close();
+        }
+
+        $this->connections = [];
+
+        parent::tearDown();
+    }
+
     /** @return array{int, int} */
     private function readLockKeys(PostgresqlLockService $service, string $lockName): array
     {
@@ -213,11 +251,34 @@ final class PostgresqlLockFunctionalTest extends TestCase
         return $lockKeys;
     }
 
+    /**
+     * The backend exits asynchronously after the disconnect, so an observer may see the lock for a moment.
+     */
+    private function isHeldAfterTheDisconnectSettles(PostgresqlLockService $observer, string $lockName): bool
+    {
+        $deadline = \microtime(true) + 5;
+
+        do {
+            $isHeld = $observer->hasLock($lockName);
+
+            if (false === $isHeld) {
+                return false;
+            }
+
+            \usleep(50_000);
+        } while (\microtime(true) < $deadline);
+
+        return $isHeld;
+    }
+
     private function createService(): PostgresqlLockService
     {
-        $entityManager = IntegrationDatabase::createEntityManager($this->createConnection('DATABASE_URL_POSTGRESQL'));
+        return $this->createServiceOn($this->createConnection('DATABASE_URL_POSTGRESQL'));
+    }
 
-        return new PostgresqlLockService(new IntegrationManagerRegistry($entityManager));
+    private function createServiceOn(Connection $connection): PostgresqlLockService
+    {
+        return new PostgresqlLockService(new IntegrationManagerRegistry(IntegrationDatabase::createEntityManager($connection)));
     }
 
     private function createConnection(string $environmentVariable): Connection

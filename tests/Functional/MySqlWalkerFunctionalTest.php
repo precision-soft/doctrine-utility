@@ -32,17 +32,6 @@ final class MySqlWalkerFunctionalTest extends TestCase
 
     private ?EntityManagerInterface $entityManager = null;
 
-    protected function tearDown(): void
-    {
-        if (null !== $this->entityManager) {
-            IntegrationDatabase::dropSchema($this->entityManager);
-            $this->entityManager->getConnection()->close();
-            $this->entityManager = null;
-        }
-
-        parent::tearDown();
-    }
-
     #[DataProviderExternal(IntegrationDatabase::class, 'dataProviderEngine')]
     public function testUseIndexHintExecutesAndTheServerPicksTheNamedIndex(string $environmentVariable): void
     {
@@ -137,6 +126,17 @@ final class MySqlWalkerFunctionalTest extends TestCase
         $this->expectExceptionMessage('invalid identifier');
 
         $query->getSQL();
+    }
+
+    protected function tearDown(): void
+    {
+        if (null !== $this->entityManager) {
+            IntegrationDatabase::dropSchema($this->entityManager);
+            $this->entityManager->getConnection()->close();
+            $this->entityManager = null;
+        }
+
+        parent::tearDown();
     }
 
     private function createLabelQuery(EntityManagerInterface $entityManager): Query

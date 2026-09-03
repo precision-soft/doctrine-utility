@@ -9,7 +9,6 @@ declare(strict_types=1);
 namespace PrecisionSoft\Doctrine\Utility\Test\Repository\Fixture;
 
 use Doctrine\DBAL\Platforms\AbstractPlatform;
-use Error;
 use Symfony\Bridge\Doctrine\Types\AbstractUidType;
 use Symfony\Component\Uid\Uuid;
 
@@ -22,16 +21,16 @@ class BrokenUidType extends AbstractUidType
 
     public function getName(): string
     {
-        return self::NAME;
+        return static::NAME;
+    }
+
+    public function convertToDatabaseValue(mixed $value, AbstractPlatform $platform): ?string
+    {
+        throw new BrokenUidTypeError('broken uid type conversion');
     }
 
     protected function getUidClass(): string
     {
         return Uuid::class;
-    }
-
-    public function convertToDatabaseValue(mixed $value, AbstractPlatform $platform): ?string
-    {
-        throw new Error('broken uid type conversion');
     }
 }
