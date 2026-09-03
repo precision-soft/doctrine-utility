@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [v4.4.0] - 2026-09-03 - Single uid values bound through the column type, keyset and null guards, one lock timeout contract, and the example application
+
 ### Added
 
 - `DoctrineRepository::hasAssociation()` and `DoctrineRepository::allowsNull()` expose what the criteria validation now asks of the mapping: whether a mapped name is an association, and whether the column behind it may hold null — a field by its mapping, an owning side to-one association by its join columns
@@ -549,7 +551,9 @@ Supersedes v4.3.0, which was withdrawn. Its tag was briefly pushed onto the v4.2
 - `MySqlWalker` — custom SQL walker adding `USE INDEX` / `IGNORE INDEX` / `FORCE INDEX` / `FOR UPDATE` hints
 - Dev infrastructure: Docker container, git hooks (pre-commit with php-cs-fixer + lint + PHPUnit), PHP-CS-Fixer configuration, PHPUnit 9 test scaffolding
 
-[Unreleased]: https://github.com/precision-soft/doctrine-utility/compare/v4.3.1...HEAD
+[Unreleased]: https://github.com/precision-soft/doctrine-utility/compare/v4.4.0...HEAD
+
+[v4.4.0]: https://github.com/precision-soft/doctrine-utility/compare/v4.3.1...v4.4.0
 
 [v4.3.1]: https://github.com/precision-soft/doctrine-utility/compare/v4.2.0...v4.3.1
 
