@@ -9,6 +9,7 @@ declare(strict_types=1);
 namespace PrecisionSoft\Doctrine\Utility\Test\Functional;
 
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Exception\DriverException;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use PrecisionSoft\Doctrine\Utility\Exception\PostgresqlLockException;
@@ -210,6 +211,76 @@ final class PostgresqlLockFunctionalTest extends TestCase
 
         $service->releaseLocks(null, throwException: true);
         static::assertFalse($observer->hasLock('closed-connection'));
+    }
+
+    public function testALockLostToACompetitorIsNotReportedAsHeldAfterAFailedRefresh(): void
+    {
+        $connection = $this->createConnection('DATABASE_URL_POSTGRESQL');
+        $service = $this->createServiceOn($connection);
+        $competitor = $this->createService();
+
+        $service->acquire('lost-to-competitor');
+        $connection->close();
+        static::assertFalse($this->isHeldAfterTheDisconnectSettles($competitor, 'lost-to-competitor'));
+
+        $competitor->acquire('lost-to-competitor');
+
+        try {
+            $service->acquire('lost-to-competitor', forceRefresh: true);
+
+            static::fail('the refresh took an advisory lock the competitor holds');
+        } catch (PostgresqlLockException $exception) {
+            static::assertStringContainsString('already in progress', $exception->getMessage());
+        }
+
+        /* with the bookkeeping kept, this acquire took the fast path and answered success without asking the server */
+        try {
+            $service->acquire('lost-to-competitor');
+
+            static::fail('the acquire after a failed refresh reported an advisory lock the competitor holds');
+        } catch (PostgresqlLockException $exception) {
+            static::assertStringContainsString('already in progress', $exception->getMessage());
+        }
+
+        static::assertFalse($service->hasLockInCurrentSession('lost-to-competitor'));
+        static::assertTrue($competitor->hasLockInCurrentSession('lost-to-competitor'));
+
+        $competitor->releaseLocks(null, throwException: true);
+        static::assertFalse($competitor->hasLock('lost-to-competitor'));
+    }
+
+    public function testARefreshInsideAnAbortedTransactionDoesNotLeakTheAdvisoryLock(): void
+    {
+        $connection = $this->createConnection('DATABASE_URL_POSTGRESQL');
+        $service = $this->createServiceOn($connection);
+        $observer = $this->createService();
+
+        $service->acquire('aborted-transaction');
+        $connection->beginTransaction();
+
+        try {
+            $connection->executeQuery('SELECT 1 / 0');
+
+            static::fail('the division by zero was expected to abort the transaction');
+        } catch (DriverException) {
+        }
+
+        try {
+            $service->acquire('aborted-transaction', forceRefresh: true);
+
+            static::fail('a refresh inside an aborted transaction has to fail');
+        } catch (PostgresqlLockException $exception) {
+            static::assertStringContainsString('current transaction is aborted', $exception->getMessage());
+        }
+
+        $connection->rollBack();
+
+        /* the session kept the advisory lock through the failed refresh; stacking it here would outlive the last release */
+        $service->acquire('aborted-transaction');
+        $service->release('aborted-transaction', throwException: true);
+        $service->release('aborted-transaction', throwException: true);
+
+        static::assertFalse($observer->hasLock('aborted-transaction'));
     }
 
     public function testAClosedSessionReleasesItsAdvisoryLock(): void

@@ -300,7 +300,7 @@ $lockService->releaseLocks();
 
 Lock names longer than 64 characters are automatically hashed to fit MySQL's limit. Locks are reference-counted: calling `acquire()` multiple times with the same name increments a counter, and `release()` decrements it, only actually releasing the MySQL lock when the count reaches zero.
 
-The counted re-acquire never asks the engine. `acquire($name, forceRefresh: true)` does: it asks whether *this* session still owns the lock, re-takes it when it does not, and adds no reference either way — so a `release()` per `acquire()` without `forceRefresh` still balances. Use it when the connection may have been closed or reset while the lock was held: named locks live exactly as long as their session, and after a reconnect the reference count keeps saying held while the new session holds nothing.
+The counted re-acquire never asks the engine. `acquire($name, forceRefresh: true)` does: it asks whether *this* session still owns the lock, re-takes it when it does not, and adds no reference either way — so a `release()` per `acquire()` without `forceRefresh` still balances. Use it when the connection may have been closed or reset while the lock was held: named locks live exactly as long as their session, and after a reconnect the reference count keeps saying held while the new session holds nothing. A refresh that fails — another session took the lock in the meantime, or the query itself failed — marks the lock unverified: the reference count is kept for the callers still holding it, and the next `acquire()` asks the engine whether this session still owns the lock before counting it, instead of trusting the count.
 
 All errors throw [`MysqlLockException`](./src/Exception/MysqlLockException.php).
 

@@ -254,6 +254,45 @@ final class MysqlLockFunctionalTest extends TestCase
     }
 
     #[DataProviderExternal(IntegrationDatabase::class, 'dataProviderEngine')]
+    public function testALockLostToACompetitorIsNotReportedAsHeldAfterAFailedRefresh(string $environmentVariable): void
+    {
+        $connection = $this->createConnection($environmentVariable);
+        $lockService = $this->createLockServiceOn($connection);
+        $competitor = $this->createLockService($environmentVariable);
+        $observer = $this->createConnection($environmentVariable);
+        $lockName = 'integration-lock-lost-to-competitor';
+
+        $lockService->acquire($lockName);
+        $connection->close();
+        static::assertTrue($this->isFreeAfterTheDisconnectSettles($observer, $lockName));
+
+        $competitor->acquire($lockName);
+
+        try {
+            $lockService->acquire($lockName, forceRefresh: true);
+
+            static::fail('the refresh took a lock the competitor holds');
+        } catch (MysqlLockException $mysqlLockException) {
+            static::assertStringContainsString('already in progress', $mysqlLockException->getMessage());
+        }
+
+        /* with the bookkeeping kept, this acquire took the fast path and answered success without asking the server */
+        try {
+            $lockService->acquire($lockName);
+
+            static::fail('the acquire after a failed refresh reported a lock the competitor holds');
+        } catch (MysqlLockException $mysqlLockException) {
+            static::assertStringContainsString('already in progress', $mysqlLockException->getMessage());
+        }
+
+        static::assertFalse($lockService->hasLockInCurrentSession($lockName));
+        static::assertTrue($competitor->hasLockInCurrentSession($lockName));
+
+        $competitor->releaseLocks(null, throwException: true);
+        static::assertTrue($this->isFreeLock($observer, $lockName));
+    }
+
+    #[DataProviderExternal(IntegrationDatabase::class, 'dataProviderEngine')]
     public function testAClosedSessionReleasesItsLockOnTheServer(string $environmentVariable): void
     {
         $connection = $this->createConnection($environmentVariable);

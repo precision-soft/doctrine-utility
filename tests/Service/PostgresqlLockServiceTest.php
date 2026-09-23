@@ -19,6 +19,7 @@ use Mockery\MockInterface;
 use PHPUnit\Framework\TestCase;
 use PrecisionSoft\Doctrine\Utility\Exception\PostgresqlLockException;
 use PrecisionSoft\Doctrine\Utility\Service\PostgresqlLockService;
+use PrecisionSoft\Doctrine\Utility\Test\Utility\Exception\FixtureException;
 use ReflectionMethod;
 use ReflectionProperty;
 
@@ -33,6 +34,8 @@ final class PostgresqlLockServiceTest extends TestCase
 
     private const SIGNED_INT32_MINIMUM = -2147483648;
     private const SIGNED_INT32_MAXIMUM = 2147483647;
+    private const SESSION_LOCK_COUNT_QUERY = "SELECT COUNT(*) FROM pg_locks WHERE locktype = 'advisory'"
+        . ' AND classid = (?::int)::oid AND objid = (?::int)::oid AND objsubid = 2 AND granted = TRUE AND pid = pg_backend_pid()';
 
     private Connection&MockInterface $connection;
     private PostgresqlLockService $postgresqlLockService;
@@ -154,6 +157,78 @@ final class PostgresqlLockServiceTest extends TestCase
         static::assertSame([], $this->readRegisteredLocks());
     }
 
+    public function testAFailedRefreshMarksTheLockUnverifiedAndTheNextAcquireAsksTheServer(): void
+    {
+        $this->mockPostgresqlPlatform();
+        $this->connection->shouldReceive('fetchOne')
+            ->with('SELECT pg_try_advisory_lock(?, ?)', Mockery::type('array'))
+            ->times(3)
+            ->andReturn('t', 'f', 'f');
+        $this->connection->shouldReceive('fetchOne')
+            ->with(static::SESSION_LOCK_COUNT_QUERY, Mockery::type('array'))
+            ->twice()
+            ->andReturn('0');
+
+        $this->postgresqlLockService->acquire('orders');
+
+        try {
+            $this->postgresqlLockService->acquire('orders', forceRefresh: true);
+
+            static::fail('a refresh on an advisory lock another session took has to fail');
+        } catch (PostgresqlLockException $postgresqlLockException) {
+            static::assertSame('another operation with the same id is already in progress', $postgresqlLockException->getMessage());
+        }
+
+        static::assertFalse($this->readRegisteredLocks()['orders@@default']['verified']);
+        static::assertSame(1, $this->readRegisteredLocks()['orders@@default']['count']);
+
+        $this->expectException(PostgresqlLockException::class);
+        $this->expectExceptionMessage('another operation with the same id is already in progress');
+
+        $this->postgresqlLockService->acquire('orders');
+    }
+
+    public function testAnAcquireAfterARefreshInAnAbortedTransactionDoesNotStackTheAdvisoryLock(): void
+    {
+        $this->mockPostgresqlPlatform();
+        $this->connection->shouldReceive('fetchOne')
+            ->with('SELECT pg_try_advisory_lock(?, ?)', Mockery::type('array'))
+            ->once()
+            ->andReturn('t');
+        $this->connection->shouldReceive('fetchOne')
+            ->with(static::SESSION_LOCK_COUNT_QUERY, Mockery::type('array'))
+            ->twice()
+            ->andReturnUsing(
+                static fn(): string => throw new FixtureException('current transaction is aborted, commands ignored until end of transaction block'),
+                static fn(): string => '1',
+            );
+        $this->connection->shouldReceive('fetchOne')
+            ->with('SELECT pg_advisory_unlock(?, ?)', Mockery::type('array'))
+            ->once()
+            ->andReturn('t');
+
+        $this->postgresqlLockService->acquire('orders');
+
+        try {
+            $this->postgresqlLockService->acquire('orders', forceRefresh: true);
+
+            static::fail('a refresh inside an aborted transaction has to fail');
+        } catch (PostgresqlLockException $postgresqlLockException) {
+            static::assertStringContainsString('current transaction is aborted', $postgresqlLockException->getMessage());
+        }
+
+        /* the session still holds the advisory lock, so a pg_try_advisory_lock here would stack it one level above the count */
+        $this->postgresqlLockService->acquire('orders');
+
+        static::assertSame(2, $this->readRegisteredLocks()['orders@@default']['count']);
+        static::assertTrue($this->readRegisteredLocks()['orders@@default']['verified']);
+
+        $this->postgresqlLockService->release('orders', throwException: true);
+        $this->postgresqlLockService->release('orders', throwException: true);
+
+        static::assertSame([], $this->readRegisteredLocks());
+    }
+
     public function testHasLockCountsGrantedLocksClusterWideAndInSessionByBackendPid(): void
     {
         $this->mockPostgresqlPlatform();
@@ -207,10 +282,10 @@ final class PostgresqlLockServiceTest extends TestCase
             ->andReturn(Mockery::mock(PostgreSQLPlatform::class));
     }
 
-    /** @return array<string, array{count: int, lockName: string, entityManagerName: ?string}> */
+    /** @return array<string, array{count: int, lockName: string, entityManagerName: ?string, verified: bool}> */
     private function readRegisteredLocks(): array
     {
-        /** @var array<string, array{count: int, lockName: string, entityManagerName: ?string}> $locks */
+        /** @var array<string, array{count: int, lockName: string, entityManagerName: ?string, verified: bool}> $locks */
         $locks = (new ReflectionProperty(PostgresqlLockService::class, 'locks'))->getValue($this->postgresqlLockService);
 
         return $locks;

@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [v4.4.1] - 2026-09-23 - A failed lock refresh stops reporting the lock held
+
+### Fixed
+
+- `acquire(forceRefresh: true)` that failed **left the lock trusted in the reference count**, so the next plain `acquire()` on the same name took the fast path and returned success without a query, while another session held the lock. The sequence is the one `forceRefresh` exists for: the connection drops, the engine frees the session's locks, a competitor takes the name before this process reconnects, and the refresh is correctly refused — but the bookkeeping survived the refusal. Every later acquire of that name in the process then reported a lock it did not hold, and the matching `release()` asked the engine to free a lock owned by someone else. A failed refresh now marks the lock **unverified** — contention, an invalid response, or a query the engine never answered — and the next acquire of that name asks the engine whether this session still owns it before counting it: owned, it adds the reference without taking the lock a second time; lost, it re-takes it or fails. The entry is
+  kept rather than dropped for two reasons: the references of nested callers still out stay balanced, and a refresh that failed without an answer — a PostgreSQL session inside an aborted transaction, which still holds its advisory locks — does not lead the next acquire to stack the lock one level above the count, where the last `release()` would leave it held until the connection closes. It applies to both `MysqlLockService` and `PostgresqlLockService`; the functional suite pins the competitor case on MySQL 8.4, MariaDB 11.8 and PostgreSQL 18, and the aborted transaction on PostgreSQL 18, all of which failed before the fix
+
 ## [v4.4.0] - 2026-09-03 - Single uid values bound through the column type, keyset and null guards, one lock timeout contract, and the example application
 
 ### Added
@@ -552,7 +559,9 @@ Supersedes v4.3.0, which was withdrawn. Its tag was briefly pushed onto the v4.2
 - `MySqlWalker` — custom SQL walker adding `USE INDEX` / `IGNORE INDEX` / `FORCE INDEX` / `FOR UPDATE` hints
 - Dev infrastructure: Docker container, git hooks (pre-commit with php-cs-fixer + lint + PHPUnit), PHP-CS-Fixer configuration, PHPUnit 9 test scaffolding
 
-[Unreleased]: https://github.com/precision-soft/doctrine-utility/compare/v4.4.0...HEAD
+[Unreleased]: https://github.com/precision-soft/doctrine-utility/compare/v4.4.1...HEAD
+
+[v4.4.1]: https://github.com/precision-soft/doctrine-utility/compare/v4.4.0...v4.4.1
 
 [v4.4.0]: https://github.com/precision-soft/doctrine-utility/compare/v4.3.1...v4.4.0
 

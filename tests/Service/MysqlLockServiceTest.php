@@ -258,6 +258,187 @@ final class MysqlLockServiceTest extends TestCase
         $this->mysqlLockService->release('test_lock', null, true);
     }
 
+    public function testAFailedForceRefreshMarksTheLockUnverifiedSoTheNextAcquireAsksTheEngine(): void
+    {
+        $acquireResult = Mockery::mock(Result::class);
+        $acquireResult->shouldReceive('fetchAssociative')
+            ->once()
+            ->andReturn(['lockAcquired' => 1]);
+
+        $ownershipResult = Mockery::mock(Result::class);
+        $ownershipResult->shouldReceive('fetchAssociative')
+            ->twice()
+            ->andReturn(['lockOwner' => 7, 'sessionId' => 42]);
+
+        $refusedResult = Mockery::mock(Result::class);
+        $refusedResult->shouldReceive('fetchAssociative')
+            ->twice()
+            ->andReturn(['lockAcquired' => 0]);
+
+        $this->connection->shouldReceive('quote')
+            ->andReturn("'test_lock'");
+        $this->connection->shouldReceive('executeQuery')
+            ->times(5)
+            ->andReturn($acquireResult, $ownershipResult, $refusedResult, $ownershipResult, $refusedResult);
+
+        $this->mysqlLockService->acquire('test_lock');
+
+        try {
+            $this->mysqlLockService->acquire('test_lock', 0, null, true);
+
+            static::fail('a refresh on a lock another session took has to fail');
+        } catch (MysqlLockException $mysqlLockException) {
+            static::assertSame('another operation with the same id is already in progress', $mysqlLockException->getMessage());
+        }
+
+        static::assertSame(
+            ['test_lock@@default' => ['count' => 1, 'lockName' => 'test_lock', 'entityManagerName' => null, 'verified' => false]],
+            $this->readRegisteredLocks(),
+        );
+
+        /* the retry reaches the engine, which the fast path would have skipped had the failed refresh left the lock verified */
+        $this->expectException(MysqlLockException::class);
+        $this->expectExceptionMessage('another operation with the same id is already in progress');
+
+        $this->mysqlLockService->acquire('test_lock');
+    }
+
+    public function testARefreshThatCannotReachTheEngineKeepsTheLockUnverified(): void
+    {
+        $acquireResult = Mockery::mock(Result::class);
+        $acquireResult->shouldReceive('fetchAssociative')
+            ->once()
+            ->andReturn(['lockAcquired' => 1]);
+
+        $this->connection->shouldReceive('quote')
+            ->andReturn("'test_lock'");
+        $this->connection->shouldReceive('executeQuery')
+            ->twice()
+            ->andReturnUsing(
+                static fn(): Result => $acquireResult,
+                static fn(): Result => throw new FixtureException('the server went away'),
+            );
+
+        $this->mysqlLockService->acquire('test_lock');
+
+        try {
+            $this->mysqlLockService->acquire('test_lock', 0, null, true);
+
+            static::fail('a refresh whose connection is gone has to fail');
+        } catch (MysqlLockException $mysqlLockException) {
+            static::assertStringContainsString('the server went away', $mysqlLockException->getMessage());
+        }
+
+        static::assertSame(
+            ['test_lock@@default' => ['count' => 1, 'lockName' => 'test_lock', 'entityManagerName' => null, 'verified' => false]],
+            $this->readRegisteredLocks(),
+        );
+    }
+
+    public function testAFailedRefreshKeepsTheReferencesOfTheCallersStillHoldingTheLock(): void
+    {
+        $acquireResult = Mockery::mock(Result::class);
+        $acquireResult->shouldReceive('fetchAssociative')
+            ->twice()
+            ->andReturn(['lockAcquired' => 1]);
+
+        $ownershipResult = Mockery::mock(Result::class);
+        $ownershipResult->shouldReceive('fetchAssociative')
+            ->twice()
+            ->andReturn(['lockOwner' => 7, 'sessionId' => 42]);
+
+        $refusedResult = Mockery::mock(Result::class);
+        $refusedResult->shouldReceive('fetchAssociative')
+            ->once()
+            ->andReturn(['lockAcquired' => 0]);
+
+        $releaseResult = Mockery::mock(Result::class);
+        $releaseResult->shouldReceive('fetchAssociative')
+            ->once()
+            ->andReturn(['lockReleased' => 1]);
+
+        $this->connection->shouldReceive('quote')
+            ->andReturn("'test_lock'");
+        $this->connection->shouldReceive('executeQuery')
+            ->times(6)
+            ->andReturn($acquireResult, $ownershipResult, $refusedResult, $ownershipResult, $acquireResult, $releaseResult);
+
+        $this->mysqlLockService->acquire('test_lock');
+        $this->mysqlLockService->acquire('test_lock');
+
+        try {
+            $this->mysqlLockService->acquire('test_lock', 0, null, true);
+
+            static::fail('a refresh on a lock another session took has to fail');
+        } catch (MysqlLockException) {
+        }
+
+        $this->mysqlLockService->acquire('test_lock');
+
+        static::assertSame(
+            ['test_lock@@default' => ['count' => 3, 'lockName' => 'test_lock', 'entityManagerName' => null, 'verified' => true]],
+            $this->readRegisteredLocks(),
+        );
+
+        /* three references, one engine level: only the last release reaches the server */
+        $this->mysqlLockService->release('test_lock', null, true);
+        $this->mysqlLockService->release('test_lock', null, true);
+        $this->mysqlLockService->release('test_lock', null, true);
+
+        static::assertSame([], $this->readRegisteredLocks());
+    }
+
+    public function testAnAcquireAfterAnUnansweredRefreshDoesNotStackALockTheSessionStillHolds(): void
+    {
+        $acquireResult = Mockery::mock(Result::class);
+        $acquireResult->shouldReceive('fetchAssociative')
+            ->once()
+            ->andReturn(['lockAcquired' => 1]);
+
+        $ownershipResult = Mockery::mock(Result::class);
+        $ownershipResult->shouldReceive('fetchAssociative')
+            ->once()
+            ->andReturn(['lockOwner' => 42, 'sessionId' => 42]);
+
+        $releaseResult = Mockery::mock(Result::class);
+        $releaseResult->shouldReceive('fetchAssociative')
+            ->once()
+            ->andReturn(['lockReleased' => 1]);
+
+        $this->connection->shouldReceive('quote')
+            ->andReturn("'test_lock'");
+        $this->connection->shouldReceive('executeQuery')
+            ->times(4)
+            ->andReturnUsing(
+                static fn(): Result => $acquireResult,
+                static fn(): Result => throw new FixtureException('query execution was interrupted'),
+                static fn(): Result => $ownershipResult,
+                static fn(): Result => $releaseResult,
+            );
+
+        $this->mysqlLockService->acquire('test_lock');
+
+        try {
+            $this->mysqlLockService->acquire('test_lock', 0, null, true);
+
+            static::fail('a refresh whose ownership check failed has to fail');
+        } catch (MysqlLockException) {
+        }
+
+        /* the session never lost the lock, so a GET_LOCK here would leave the server one level above the count */
+        $this->mysqlLockService->acquire('test_lock');
+
+        static::assertSame(
+            ['test_lock@@default' => ['count' => 2, 'lockName' => 'test_lock', 'entityManagerName' => null, 'verified' => true]],
+            $this->readRegisteredLocks(),
+        );
+
+        $this->mysqlLockService->release('test_lock', null, true);
+        $this->mysqlLockService->release('test_lock', null, true);
+
+        static::assertSame([], $this->readRegisteredLocks());
+    }
+
     public function testAcquireThrowsExceptionOnTimeout(): void
     {
         $queryResult = Mockery::mock(Result::class);
@@ -1015,10 +1196,10 @@ final class MysqlLockServiceTest extends TestCase
         $this->mysqlLockService = new MysqlLockService($this->managerRegistry);
     }
 
-    /** @return array<string, array{count: int, lockName: string, entityManagerName: ?string}> */
+    /** @return array<string, array{count: int, lockName: string, entityManagerName: ?string, verified: bool}> */
     private function readRegisteredLocks(): array
     {
-        /** @var array<string, array{count: int, lockName: string, entityManagerName: ?string}> $locks */
+        /** @var array<string, array{count: int, lockName: string, entityManagerName: ?string, verified: bool}> $locks */
         $locks = (new ReflectionProperty(MysqlLockService::class, 'locks'))->getValue($this->mysqlLockService);
 
         return $locks;

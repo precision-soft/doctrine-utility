@@ -19,7 +19,7 @@ abstract class AbstractLockService implements LockServiceInterface
     protected const LOCK_KEY_SEPARATOR = '@@';
     protected const DEFAULT_ENTITY_MANAGER_NAME = 'default';
 
-    /** @var array<string, array{count: int, lockName: string, entityManagerName: ?string}> */
+    /** @var array<string, array{count: int, lockName: string, entityManagerName: ?string, verified: bool}> */
     protected array $locks = [];
 
     protected ManagerRegistry $managerRegistry;
@@ -85,7 +85,8 @@ abstract class AbstractLockService implements LockServiceInterface
     /**
      * A lock the bookkeeping already holds is re-taken without a query and counted once more; `$forceRefresh` asks
      * the engine first, re-takes the lock when this session lost it — a closed connection, a server restart — and
-     * adds no reference either way.
+     * adds no reference either way. A refresh that fails marks the lock unverified instead of dropping it: the count
+     * survives for the callers still holding a reference, and the next acquire asks the engine instead of the count.
      *
      * @throws LockException if the timeout is negative, or the lock cannot be acquired or times out
      */
@@ -102,32 +103,48 @@ abstract class AbstractLockService implements LockServiceInterface
 
         $lockKey = $this->buildLockKey($lockName, $entityManagerName);
 
-        if (false === $forceRefresh && true === isset($this->locks[$lockKey])) {
+        if (false === $forceRefresh && true === isset($this->locks[$lockKey]) && true === $this->locks[$lockKey]['verified']) {
             ++$this->locks[$lockKey]['count'];
 
             return $this;
         }
 
-        $this->wrapException(function () use ($lockName, $timeout, $entityManagerName, $lockKey): void {
-            $entityManager = $this->getEntityManager($entityManagerName);
+        try {
+            $this->wrapException(function () use ($lockName, $timeout, $entityManagerName, $lockKey, $forceRefresh): void {
+                $entityManager = $this->getEntityManager($entityManagerName);
 
-            /* both engines stack a lock re-taken by the session already holding it, so a refresh must ask who owns it before acquiring, or it would leave the engine one level above the reference count */
-            if (true === isset($this->locks[$lockKey]) && true === $this->hasLockInSession($lockName, $entityManager)) {
-                return;
-            }
+                /* both engines stack a lock re-taken by the session already holding it, so a refresh must ask who owns it before acquiring, or it would leave the engine one level above the reference count */
+                if (true === isset($this->locks[$lockKey]) && true === $this->hasLockInSession($lockName, $entityManager)) {
+                    $this->confirmLock($lockKey, $forceRefresh);
 
-            if (false === $this->acquireLock($lockName, $timeout, $entityManager)) {
-                throw $this->createException('another operation with the same id is already in progress');
-            }
+                    return;
+                }
 
-            if (false === isset($this->locks[$lockKey])) {
+                if (false === $this->acquireLock($lockName, $timeout, $entityManager)) {
+                    throw $this->createException('another operation with the same id is already in progress');
+                }
+
+                if (true === isset($this->locks[$lockKey])) {
+                    $this->confirmLock($lockKey, $forceRefresh);
+
+                    return;
+                }
+
                 $this->locks[$lockKey] = [
                     'count' => 1,
                     'lockName' => $lockName,
                     'entityManagerName' => $entityManagerName,
+                    'verified' => true,
                 ];
+            }, \sprintf('failed acquiring lock `%s`', $lockName));
+        } catch (LockException $lockException) {
+            /* the lock is either held elsewhere or in a state the engine never answered for, like a postgresql session inside an aborted transaction that still holds it; dropping the entry would lose the references still out and, in the second case, let the next acquire stack the lock one level above the count, so the entry stays and only the fast path is closed to it */
+            if (true === isset($this->locks[$lockKey])) {
+                $this->locks[$lockKey]['verified'] = false;
             }
-        }, \sprintf('failed acquiring lock `%s`', $lockName));
+
+            throw $lockException;
+        }
 
         return $this;
     }
@@ -249,6 +266,19 @@ abstract class AbstractLockService implements LockServiceInterface
         }
 
         return $this;
+    }
+
+    /** a plain acquire adds its reference once the engine vouches for the lock; a refresh never adds one */
+    protected function confirmLock(string $lockKey, bool $forceRefresh): void
+    {
+        $lock = $this->locks[$lockKey];
+        $lock['verified'] = true;
+
+        if (false === $forceRefresh) {
+            ++$lock['count'];
+        }
+
+        $this->locks[$lockKey] = $lock;
     }
 
     protected function buildLockKey(string $lockName, ?string $entityManagerName): string
